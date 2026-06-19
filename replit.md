@@ -74,6 +74,20 @@ packages/
 - Footer credit: "Made by mikacend (mikaships.site)" — keep on all public-facing pages
 - Theme: Musixmatch-inspired — white/light background, orange primary `#FF5500`, Outfit (headings) + Inter (body) + JetBrains Mono (code/mono), no dark mode
 
+## GitHub sync
+
+Every Replit task merge automatically mirrors the workspace to **github.com/mikaelaldy/lyricle** via `scripts/post-merge.sh`.
+
+**How it works:**
+1. `pnpm install` + `pnpm --filter db push` run first (as before).
+2. The script opens a temporary git credential file (mode 600, deleted on exit) so the `GITHUB_TOKEN` secret is never embedded in a URL or exposed in process listings.
+3. It attempts a standard (non-force) `git push` to `https://github.com/mikaelaldy/lyricle.git HEAD:main`.
+4. If the push is rejected (remote has diverged — e.g. someone committed directly to GitHub), the script logs a clear warning and exits cleanly without blocking the rest of setup. No automatic force-push is performed.
+
+**Required secret:** `GITHUB_TOKEN` — a GitHub Personal Access Token with **Contents: write** permission on `mikaelaldy/lyricle`. If the secret is absent the sync step is skipped with a log message.
+
+**If sync fails:** Pull the conflicting commits locally, resolve, then push. Once the remote is fast-forwardable from the Replit workspace the next merge will sync automatically.
+
 ## Gotchas
 
 - `MXM_KEY` with a UUID-format value will always 401 — Musixmatch keys are alphanumeric strings. The app falls back to curated puzzles automatically.
