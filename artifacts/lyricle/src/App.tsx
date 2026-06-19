@@ -10,6 +10,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Game from "@/pages/Game";
 import Landing from "@/pages/Landing";
 import Leaderboard from "@/pages/Leaderboard";
+import CreatePuzzle from "@/pages/CreatePuzzle";
 import NotFound from "@/pages/not-found";
 
 const clerkPubKey = publishableKeyFromHost(
@@ -104,6 +105,7 @@ function Router() {
       <Route path="/" component={HomeRoute} />
       <Route path="/game" component={Game} />
       <Route path="/leaderboard" component={Leaderboard} />
+      <Route path="/create" component={CreatePuzzle} />
       <Route path="/sign-in/*?" component={SignInPage} />
       <Route path="/sign-up/*?" component={SignUpPage} />
       <Route component={NotFound} />

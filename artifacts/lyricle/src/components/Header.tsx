@@ -1,7 +1,7 @@
 import { useUser, useClerk } from "@clerk/react";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Music, Trophy, BarChart2, LogOut, LogIn } from "lucide-react";
+import { Trophy, LogOut, LogIn, PlusCircle } from "lucide-react";
 
 export default function Header() {
   const { user, isLoaded } = useUser();
@@ -27,7 +27,15 @@ export default function Header() {
               <Trophy className="w-5 h-5" />
             </Button>
           </Link>
-          
+
+          {isLoaded && user && (
+            <Link href="/create">
+              <Button variant="ghost" size="icon" title="Create Puzzle" data-testid="button-create">
+                <PlusCircle className="w-5 h-5" />
+              </Button>
+            </Link>
+          )}
+
           {isLoaded && (
             <>
               {user ? (
