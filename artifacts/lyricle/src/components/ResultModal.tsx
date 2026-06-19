@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Copy, Trophy, BarChart2, Clock } from "lucide-react";
+import { Share2, Trophy, BarChart2 } from "lucide-react";
 import { useGetPuzzleAnswer, useGetPlayerStreak } from "@workspace/api-client-react";
 import { getGetPuzzleAnswerQueryKey, getGetPlayerStreakQueryKey } from "@workspace/api-client-react";
-import { formatDistanceToNow } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 import { DailyState } from "@/lib/storage";
 
@@ -43,14 +42,40 @@ export default function ResultModal({ open, onOpenChange, state, onOpenStats, on
     return () => clearInterval(interval);
   }, [open]);
 
-  const handleShare = () => {
-    const squares = state.guesses.map(g => g.correct ? "🟩" : "⬛").join("");
-    const skips = Array(5 - state.guesses.length).fill("🟨").join("");
-    
-    const text = `🎵 Lyricle #${state.puzzleNumber}\n${state.won ? "✅" : "❌"} ${state.won ? `Got it in ${state.guesses.length}/5!` : "Didn't get it"}\n${squares}${skips}\nNext puzzle in ${timeLeft}\n${window.location.origin}`;
-    
-    navigator.clipboard.writeText(text);
-    toast({ title: "Copied to clipboard!", description: "Share your result with friends." });
+  const buildEmojiGrid = () => {
+    return state.guesses.map((g, i) => {
+      if (g.correct) return "🟢";
+      if (i === state.guesses.length - 1 && !state.won) return "🟡";
+      return "🟡";
+    }).join("") + Array(5 - state.guesses.length).fill("⬜").join("");
+  };
+
+  const buildShareText = () => {
+    const grid = buildEmojiGrid();
+    const resultLine = state.won
+      ? `🎵 Lyricle #${state.puzzleNumber} — Got it in ${state.guesses.length}/5`
+      : `🎵 Lyricle #${state.puzzleNumber} — Didn't get it`;
+    return `${resultLine}\n${grid}\n${window.location.origin}`;
+  };
+
+  const handleShare = async () => {
+    const text = buildShareText();
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ text });
+        return;
+      } catch (err) {
+        if ((err as DOMException).name === "AbortError") return;
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({ title: "Copied to clipboard!", description: "Share your result with friends." });
+    } catch {
+      toast({ title: "Could not copy", description: "Please copy the result manually.", variant: "destructive" });
+    }
   };
 
   return (
@@ -77,6 +102,17 @@ export default function ResultModal({ open, onOpenChange, state, onOpenStats, on
           </div>
         )}
 
+        <div className="flex justify-center py-3">
+          <div className="flex gap-1.5 text-3xl" data-testid="emoji-grid">
+            {state.guesses.map((g, i) => (
+              <span key={i}>{g.correct ? "🟢" : "🟡"}</span>
+            ))}
+            {Array(5 - state.guesses.length).fill(null).map((_, i) => (
+              <span key={`empty-${i}`}>⬜</span>
+            ))}
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 gap-4 py-4 border-y border-border/50">
           <div className="text-center">
             <div className="text-2xl font-mono font-bold">{streak?.currentStreak || 0}</div>
@@ -90,7 +126,7 @@ export default function ResultModal({ open, onOpenChange, state, onOpenStats, on
 
         <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-4">
           <Button onClick={handleShare} className="flex-1 gap-2 font-bold" data-testid="button-share">
-            <Copy className="w-4 h-4" /> Share
+            <Share2 className="w-4 h-4" /> Share
           </Button>
           <Button variant="outline" onClick={onOpenLeaderboard} className="flex-1 gap-2" data-testid="button-results-leaderboard">
             <Trophy className="w-4 h-4" /> Leaderboard
