@@ -156,6 +156,7 @@ export default function PlayPuzzle({ params }: Props) {
           }
 
           setPhase(won ? "won" : "lost");
+          window.dispatchEvent(new Event("lyricle:points-updated"));
           return;
         }
 

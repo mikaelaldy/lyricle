@@ -73,6 +73,13 @@ export default function ResultModal({ open, onOpenChange, state, onOpenStats, on
   const [streams, setStreams] = useState<number | null | undefined>(undefined);
   const [streamsLoading, setStreamsLoading] = useState(false);
 
+  // Notify Header to refresh points when modal opens (game just ended)
+  useEffect(() => {
+    if (open) {
+      window.dispatchEvent(new Event("lyricle:points-updated"));
+    }
+  }, [open]);
+
   // Countdown timer
   useEffect(() => {
     if (!open) return;

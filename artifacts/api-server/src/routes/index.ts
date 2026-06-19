@@ -5,6 +5,7 @@ import playersRouter from "./players";
 import statsRouter from "./stats";
 import ugcRouter from "./ugc";
 import partnerRouter from "./partner";
+import leaderboardRouter from "./leaderboard";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use(playersRouter);
 router.use(statsRouter);
 router.use(ugcRouter);
 router.use(partnerRouter);
+router.use(leaderboardRouter);
 
 export default router;
