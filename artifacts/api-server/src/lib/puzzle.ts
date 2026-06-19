@@ -1,3 +1,5 @@
+import { join } from "path";
+import { promises as fsp } from "fs";
 import { logger } from "./logger";
 import {
   fetchChartTracks,
@@ -16,6 +18,48 @@ import {
   buildRichsyncWords,
   type CuratedSong,
 } from "./curated-puzzles";
+
+// ─── Disk cache for album art ──────────────────────────────────────────────────
+// Persists albumArtUrl across server restarts so a cold-start oEmbed failure
+// never leaves Stage 4 without art.
+
+const DISK_CACHE_DIR = join(process.cwd(), ".puzzle-cache");
+
+async function readDiskCache(date: string): Promise<string | null> {
+  try {
+    const content = await fsp.readFile(join(DISK_CACHE_DIR, `${date}.json`), "utf-8");
+    const data = JSON.parse(content) as { albumArtUrl?: string | null };
+    return data.albumArtUrl ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function writeDiskCache(date: string, albumArtUrl: string | null): Promise<void> {
+  try {
+    await fsp.mkdir(DISK_CACHE_DIR, { recursive: true });
+    await fsp.writeFile(
+      join(DISK_CACHE_DIR, `${date}.json`),
+      JSON.stringify({ albumArtUrl }),
+      "utf-8",
+    );
+  } catch (err) {
+    logger.warn({ err }, "Failed to write album art disk cache");
+  }
+}
+
+async function cleanOldDiskCache(today: string): Promise<void> {
+  try {
+    const files = await fsp.readdir(DISK_CACHE_DIR);
+    for (const file of files) {
+      if (file.endsWith(".json") && file !== `${today}.json`) {
+        fsp.unlink(join(DISK_CACHE_DIR, file)).catch(() => {});
+      }
+    }
+  } catch {
+    // Directory doesn't exist yet — nothing to clean.
+  }
+}
 
 // ─── Puzzle epoch ─────────────────────────────────────────────────────────────
 // Day 1 of Lyricle = 2026-01-01 UTC
@@ -113,15 +157,26 @@ export async function getPuzzleCache(): Promise<PuzzleCache | null> {
   const today = getTodayDateString();
   if (cache && cache.date === today) return cache;
 
+  // Clean up cache files from previous days before building a fresh cache.
+  cleanOldDiskCache(today);
+
   const { track, curated } = await loadTodayTrack();
   if (!track && !curated) return null;
 
-  // Pre-warm album art so Stage 4 never blocks on a live oEmbed round-trip
-  let albumArtUrl: string | null = null;
-  if (curated?.spotifyTrackId) {
-    albumArtUrl = await fetchSpotifyAlbumArt(curated.spotifyTrackId);
-  } else if (track) {
-    albumArtUrl = track.album_coverart_800x800 || track.album_coverart_100x100 || null;
+  // Resolve album art — check disk first so a cold-start oEmbed failure
+  // never leaves Stage 4 without art.
+  let albumArtUrl: string | null = await readDiskCache(today);
+
+  if (albumArtUrl) {
+    logger.info("Album art loaded from disk cache — skipping oEmbed round-trip");
+  } else {
+    if (curated?.spotifyTrackId) {
+      albumArtUrl = await fetchSpotifyAlbumArt(curated.spotifyTrackId);
+    } else if (track) {
+      albumArtUrl = track.album_coverart_800x800 || track.album_coverart_100x100 || null;
+    }
+    // Persist so the next cold start can skip the fetch.
+    await writeDiskCache(today, albumArtUrl);
   }
 
   cache = {
