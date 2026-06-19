@@ -1,4 +1,5 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request } from "express";
+import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
 import { dailyResultsTable, playerStreaksTable } from "@workspace/db";
 import { eq, and, sql, desc } from "drizzle-orm";
@@ -116,7 +117,10 @@ router.post("/puzzle/result", async (req, res): Promise<void> => {
 
   const today = getTodayDateString();
   const puzzleNumber = getPuzzleNumber();
-  const { playerId, displayName, cluesUsed, won, solveTimeMs, clerkUserId } = parsed.data;
+  const { playerId, displayName, cluesUsed, won, solveTimeMs } = parsed.data;
+
+  // Derive clerkUserId server-side from Clerk auth — never trust client-provided value
+  const { userId: clerkUserId } = getAuth(req as Request);
 
   // Upsert daily result (one per player per day)
   const existing = await db

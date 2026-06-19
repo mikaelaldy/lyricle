@@ -1,12 +1,12 @@
 ---
 name: Lyricle MXM API fallback
-description: Musixmatch returned 401 with the provided UUID-format key; curated static puzzles implemented as fallback
+description: Musixmatch returned 401 with the provided key; curated static puzzles implemented as fallback
 ---
 
 # Lyricle Musixmatch Fallback
 
 ## The Rule
-The Musixmatch API key `a9674d6e-f562-4cb9-bd8c-4042e4d4e8c2` returns HTTP 401 both with and without hyphens. The key is genuinely invalid/unauthorized — this is not a code bug.
+The Musixmatch API key (stored in MXM_KEY secret) returns HTTP 401 both with and without hyphens. The key is genuinely invalid/unauthorized — this is not a code bug.
 
 ## What was built
 `artifacts/api-server/src/lib/curated-puzzles.ts` — 30 curated songs with hand-crafted clues for all 5 stages. `puzzle.ts` tries live Musixmatch first; if it returns 0 tracks (or errors), it falls back to the curated data. The autocomplete route does the same: live MXM → empty → search curated songs.
