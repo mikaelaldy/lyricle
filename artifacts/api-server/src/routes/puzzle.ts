@@ -18,6 +18,7 @@ import {
   getNextPuzzleAt,
 } from "../lib/puzzle";
 import { searchTracks } from "../lib/musixmatch";
+import { searchCuratedSongs } from "../lib/curated-puzzles";
 
 const router: IRouter = Router();
 
@@ -57,13 +58,28 @@ router.get("/puzzle/autocomplete", async (req, res): Promise<void> => {
     return;
   }
 
-  const tracks = await searchTracks(query.data.q, 8);
+  const mxmTracks = await searchTracks(query.data.q, 8);
+
+  if (mxmTracks.length > 0) {
+    res.json({
+      tracks: mxmTracks.map((t) => ({
+        displayName: `${t.artist_name} — ${t.track_name}`,
+        artist: t.artist_name,
+        title: t.track_name,
+        albumArtUrl: t.album_coverart_100x100 || null,
+      })),
+    });
+    return;
+  }
+
+  // Fallback: search curated songs when MXM is unavailable
+  const curated = searchCuratedSongs(query.data.q, 8);
   res.json({
-    tracks: tracks.map((t) => ({
-      displayName: `${t.artist_name} — ${t.track_name}`,
-      artist: t.artist_name,
-      title: t.track_name,
-      albumArtUrl: t.album_coverart_100x100 || null,
+    tracks: curated.map((s) => ({
+      displayName: `${s.artistName} — ${s.trackName}`,
+      artist: s.artistName,
+      title: s.trackName,
+      albumArtUrl: null,
     })),
   });
 });

@@ -28,5 +28,14 @@ localPort = 8081
 externalPort = 80
 
 [[ports]]
+localPort = 8082
+externalPort = 3002
+
+[[ports]]
 localPort = 23036
 externalPort = 3000
+
+[userenv]
+
+[userenv.shared]
+MXM_KEY = "a9674d6e-f562-4cb9-bd8c-4042e4d4e8c2"

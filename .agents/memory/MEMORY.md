@@ -1,1 +1,2 @@
 - [Lyricle architecture](lyricle-arch.md) — daily lyric-guessing game; puzzle/clue endpoints need MXM_KEY; puzzle/today is key-free.
+- [Lyricle MXM fallback](lyricle-mxm-fallback.md) — Musixmatch 401 with UUID-format key; curated-puzzles.ts provides 30 songs as full fallback for all 5 stages.

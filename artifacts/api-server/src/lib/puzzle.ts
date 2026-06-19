@@ -11,6 +11,11 @@ import {
   pickTranslationLanguage,
   type MxmTrack,
 } from "./musixmatch";
+import {
+  getCuratedSong,
+  buildRichsyncWords,
+  type CuratedSong,
+} from "./curated-puzzles";
 
 // ─── Puzzle epoch ─────────────────────────────────────────────────────────────
 // Day 1 of Lyricle = 2026-01-01 UTC
@@ -40,7 +45,8 @@ export function getNextPuzzleAt(): string {
 interface PuzzleCache {
   date: string;
   puzzleNumber: number;
-  track: MxmTrack;
+  track: MxmTrack | null;
+  curated: CuratedSong | null;
   clues: Partial<Record<number, ClueData>>;
 }
 
@@ -75,35 +81,45 @@ const STAGE_LABELS = [
 
 let cache: PuzzleCache | null = null;
 
-async function loadTodayTrack(): Promise<MxmTrack | null> {
+async function loadTodayTrack(): Promise<{ track: MxmTrack | null; curated: CuratedSong | null }> {
   try {
     const tracks = await fetchChartTracks(100);
-    if (!tracks.length) {
-      logger.error("Musixmatch chart returned 0 tracks");
-      return null;
+    if (tracks.length > 0) {
+      const pn = getPuzzleNumber();
+      const idx = (pn - 1) % tracks.length;
+      const track = tracks[idx];
+      logger.info(
+        { trackId: track.track_id, title: track.track_name, artist: track.artist_name },
+        "Today's puzzle track selected (live)",
+      );
+      return { track, curated: null };
     }
-    const pn = getPuzzleNumber();
-    const idx = (pn - 1) % tracks.length;
-    const track = tracks[idx];
-    logger.info({ trackId: track.track_id, title: track.track_name, artist: track.artist_name }, "Today's puzzle track selected");
-    return track;
   } catch (err) {
     logger.error({ err }, "Failed to load today's track from chart");
-    return null;
   }
+
+  // Fallback to curated puzzle
+  const pn = getPuzzleNumber();
+  const curated = getCuratedSong(pn);
+  logger.info(
+    { title: curated.trackName, artist: curated.artistName },
+    "Today's puzzle track selected (curated fallback)",
+  );
+  return { track: null, curated };
 }
 
 export async function getPuzzleCache(): Promise<PuzzleCache | null> {
   const today = getTodayDateString();
   if (cache && cache.date === today) return cache;
 
-  const track = await loadTodayTrack();
-  if (!track) return null;
+  const { track, curated } = await loadTodayTrack();
+  if (!track && !curated) return null;
 
   cache = {
     date: today,
     puzzleNumber: getPuzzleNumber(),
     track,
+    curated,
     clues: {},
   };
   return cache;
@@ -112,7 +128,19 @@ export async function getPuzzleCache(): Promise<PuzzleCache | null> {
 // ─── Clue builders ────────────────────────────────────────────────────────────
 
 async function buildClue0(puzzle: PuzzleCache): Promise<ClueData> {
+  // Curated fallback
+  if (puzzle.curated) {
+    return {
+      stage: 0,
+      stageLabel: STAGE_LABELS[0],
+      themes: puzzle.curated.themes,
+      mood: puzzle.curated.mood,
+    };
+  }
+
   const { track } = puzzle;
+  if (!track) return { stage: 0, stageLabel: STAGE_LABELS[0], themes: ["mystery", "longing", "night"], mood: "Emotional" };
+
   let themes: string[] | null = null;
   let mood: string | null = null;
 
@@ -124,7 +152,6 @@ async function buildClue0(puzzle: PuzzleCache): Promise<ClueData> {
     }
   } catch {}
 
-  // Fallback: derive from lyrics keywords if lyricslens unavailable
   if (!themes) {
     try {
       const lyrics = await fetchLyrics(track.track_id);
@@ -147,25 +174,33 @@ async function buildClue0(puzzle: PuzzleCache): Promise<ClueData> {
 }
 
 async function buildClue1(puzzle: PuzzleCache): Promise<ClueData> {
+  // Curated fallback
+  if (puzzle.curated) {
+    return {
+      stage: 1,
+      stageLabel: STAGE_LABELS[1],
+      translatedLine: puzzle.curated.translatedLine,
+      translationLanguage: puzzle.curated.translationLanguage,
+      translationLanguageCode: puzzle.curated.translationLanguageCode,
+    };
+  }
+
   const { track, puzzleNumber } = puzzle;
+  if (!track) return { stage: 1, stageLabel: STAGE_LABELS[1], translatedLine: null, translationLanguage: null, translationLanguageCode: null };
+
   const lang = pickTranslationLanguage(puzzleNumber);
   let translatedLine: string | null = null;
 
   try {
     const translations = await fetchTranslations(track.track_id);
     const match = translations.find((t) => t.language === lang.code);
-    if (match?.description) {
-      translatedLine = match.description;
-    }
+    if (match?.description) translatedLine = match.description;
   } catch {}
 
-  // Fallback: use snippet line if translation unavailable
   if (!translatedLine) {
     try {
       const snippet = await fetchSnippet(track.track_id);
-      if (snippet?.snippet_body) {
-        translatedLine = snippet.snippet_body;
-      }
+      if (snippet?.snippet_body) translatedLine = snippet.snippet_body;
     } catch {}
   }
 
@@ -179,7 +214,18 @@ async function buildClue1(puzzle: PuzzleCache): Promise<ClueData> {
 }
 
 async function buildClue2(puzzle: PuzzleCache): Promise<ClueData> {
+  // Curated fallback
+  if (puzzle.curated) {
+    return {
+      stage: 2,
+      stageLabel: STAGE_LABELS[2],
+      snippet: puzzle.curated.snippet,
+    };
+  }
+
   const { track } = puzzle;
+  if (!track) return { stage: 2, stageLabel: STAGE_LABELS[2], snippet: null };
+
   let snippet: string | null = null;
 
   try {
@@ -197,22 +243,30 @@ async function buildClue2(puzzle: PuzzleCache): Promise<ClueData> {
     } catch {}
   }
 
-  return {
-    stage: 2,
-    stageLabel: STAGE_LABELS[2],
-    snippet,
-  };
+  return { stage: 2, stageLabel: STAGE_LABELS[2], snippet };
 }
 
 async function buildClue3(puzzle: PuzzleCache): Promise<ClueData> {
+  // Curated fallback
+  if (puzzle.curated) {
+    const words = buildRichsyncWords(puzzle.curated.snippetWords);
+    return {
+      stage: 3,
+      stageLabel: STAGE_LABELS[3],
+      richsyncWords: words,
+      richsyncDurationMs: words.length > 0 ? words[words.length - 1].endMs - words[0].startMs + 500 : null,
+    };
+  }
+
   const { track } = puzzle;
+  if (!track) return { stage: 3, stageLabel: STAGE_LABELS[3], richsyncWords: null, richsyncDurationMs: null };
+
   let richsyncWords: ClueData["richsyncWords"] = null;
   let richsyncDurationMs: number | null = null;
 
   try {
     const lines = await fetchRichsync(track.track_id);
     if (lines && lines.length > 0) {
-      // Pick the most lyric-dense line (pick from middle of song)
       const midIdx = Math.floor(lines.length * 0.4);
       const line = lines[midIdx];
       if (line?.l?.length > 0) {
@@ -227,20 +281,28 @@ async function buildClue3(puzzle: PuzzleCache): Promise<ClueData> {
     }
   } catch {}
 
-  return {
-    stage: 3,
-    stageLabel: STAGE_LABELS[3],
-    richsyncWords,
-    richsyncDurationMs,
-  };
+  return { stage: 3, stageLabel: STAGE_LABELS[3], richsyncWords, richsyncDurationMs };
 }
 
 async function buildClue4(puzzle: PuzzleCache): Promise<ClueData> {
+  // Curated fallback
+  if (puzzle.curated) {
+    return {
+      stage: 4,
+      stageLabel: STAGE_LABELS[4],
+      previewUrl: null,
+      albumArtUrl: null,
+      spotifyTrackId: puzzle.curated.spotifyTrackId,
+    };
+  }
+
   const { track } = puzzle;
+  if (!track) return { stage: 4, stageLabel: STAGE_LABELS[4], previewUrl: null, albumArtUrl: null, spotifyTrackId: null };
+
   return {
     stage: 4,
     stageLabel: STAGE_LABELS[4],
-    previewUrl: null,                   // Spotify preview — MXM doesn't directly provide
+    previewUrl: null,
     albumArtUrl: track.album_coverart_800x800 || track.album_coverart_100x100 || null,
     spotifyTrackId: track.track_spotify_id || null,
   };
@@ -250,7 +312,6 @@ export async function getClue(stage: number): Promise<ClueData | null> {
   const puzzle = await getPuzzleCache();
   if (!puzzle) return null;
 
-  // Return cached clue if available
   if (puzzle.clues[stage]) return puzzle.clues[stage]!;
 
   let clue: ClueData;
@@ -278,12 +339,22 @@ export async function checkGuess(
     return { correct: false, normalizedGuess: `${artist} — ${title}`, hint: null };
   }
 
-  const { track } = puzzle;
-  const normalizedGuess = `${normalizeName(artist)} — ${normalizeTitle(title)}`;
-  const normalizedAnswer = `${normalizeName(track.artist_name)} — ${normalizeTitle(track.track_name)}`;
+  let answerArtist: string;
+  let answerTitle: string;
 
-  const titleMatch = normalizeTitle(title) === normalizeTitle(track.track_name);
-  const artistMatch = normalizeName(artist) === normalizeName(track.artist_name);
+  if (puzzle.curated) {
+    answerArtist = puzzle.curated.artistName;
+    answerTitle = puzzle.curated.trackName;
+  } else if (puzzle.track) {
+    answerArtist = puzzle.track.artist_name;
+    answerTitle = puzzle.track.track_name;
+  } else {
+    return { correct: false, normalizedGuess: `${artist} — ${title}`, hint: null };
+  }
+
+  const normalizedGuess = `${normalizeName(artist)} — ${normalizeTitle(title)}`;
+  const titleMatch = normalizeTitle(title) === normalizeTitle(answerTitle);
+  const artistMatch = normalizeName(artist) === normalizeName(answerArtist);
   const correct = titleMatch && artistMatch;
 
   let hint: string | null = null;
@@ -307,18 +378,33 @@ export async function getSongReveal(): Promise<{
   const puzzle = await getPuzzleCache();
   if (!puzzle) return null;
 
-  const { track } = puzzle;
-  const releaseYear = track.first_release_date
-    ? parseInt(track.first_release_date.slice(0, 4), 10)
-    : null;
+  if (puzzle.curated) {
+    return {
+      title: puzzle.curated.trackName,
+      artist: puzzle.curated.artistName,
+      albumArtUrl: null,
+      spotifyTrackId: puzzle.curated.spotifyTrackId,
+      previewUrl: null,
+      meaning: null,
+      releaseYear: puzzle.curated.releaseYear,
+    };
+  }
 
-  return {
-    title: track.track_name,
-    artist: track.artist_name,
-    albumArtUrl: track.album_coverart_800x800 || track.album_coverart_100x100 || null,
-    spotifyTrackId: track.track_spotify_id || null,
-    previewUrl: null,
-    meaning: null,
-    releaseYear: isNaN(releaseYear!) ? null : releaseYear,
-  };
+  if (puzzle.track) {
+    const track = puzzle.track;
+    const releaseYear = track.first_release_date
+      ? parseInt(track.first_release_date.slice(0, 4), 10)
+      : null;
+    return {
+      title: track.track_name,
+      artist: track.artist_name,
+      albumArtUrl: track.album_coverart_800x800 || track.album_coverart_100x100 || null,
+      spotifyTrackId: track.track_spotify_id || null,
+      previewUrl: null,
+      meaning: null,
+      releaseYear: isNaN(releaseYear!) ? null : releaseYear,
+    };
+  }
+
+  return null;
 }
