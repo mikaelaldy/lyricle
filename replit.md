@@ -18,8 +18,8 @@ A daily music guessing game and UGC social puzzle platform built for Musicathon 
 | `DATABASE_URL` | PostgreSQL connection string |
 | `CLERK_SECRET_KEY` | Clerk backend auth |
 | `VITE_CLERK_PUBLISHABLE_KEY` | Clerk frontend auth |
-| `JAMBASE_API_KEY` | Concert/tour data in result modal |
-| `SONGSTATS_API_KEY` | Spotify stream stats in result modal |
+| `JAMBASE_API_KEY` _(optional)_ | Concert/tour data in the daily puzzle result modal; omit to hide that section |
+| `SONGSTATS_API_KEY` _(optional)_ | Spotify stream counts in the daily puzzle result modal; omit to hide that section |
 | `MXM_KEY` _(optional)_ | Musixmatch API for live daily puzzle clues; falls back to curated puzzles without it |
 
 ## Stack
