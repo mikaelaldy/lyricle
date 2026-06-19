@@ -50,27 +50,46 @@ export default function ClueCard({ clue, index, revealed }: ClueCardProps) {
             >
               {index === 0 && (
                 <div className="space-y-4">
-                  <div className="flex flex-wrap gap-2">
-                    {clue.themes?.map((theme: string) => (
-                      <Badge key={theme} variant="secondary" className="bg-secondary/50 text-foreground border-border px-3 py-1 text-sm font-medium">
-                        #{theme}
-                      </Badge>
-                    ))}
-                  </div>
-                  {clue.mood && (
-                    <div className="text-xl font-serif italic text-muted-foreground">
-                      “Feeling {clue.mood.toLowerCase()}...”
+                  {clue.themes && clue.themes.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {clue.themes.map((theme: string) => (
+                        <Badge key={theme} variant="secondary" className="bg-secondary/50 text-foreground border-border px-3 py-1 text-sm font-medium">
+                          #{theme}
+                        </Badge>
+                      ))}
                     </div>
+                  ) : (
+                    <div className="text-muted-foreground italic text-sm">Themes unavailable for this track.</div>
                   )}
+                  {clue.mood ? (
+                    <div className="text-xl font-serif italic text-muted-foreground">
+                      &ldquo;Feeling {clue.mood.toLowerCase()}...&rdquo;
+                    </div>
+                  ) : null}
                 </div>
               )}
 
               {index === 1 && (
                 <div className="space-y-2">
-                  <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider">In {clue.translationLanguage}:</span>
-                  <blockquote className="text-2xl font-serif leading-relaxed italic border-l-2 border-primary/30 pl-4 py-1">
-                    {clue.translatedLine}
-                  </blockquote>
+                  {clue.translationLanguage === "Lyric hint" ? (
+                    <>
+                      <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider">
+                        Lyric hint <span className="normal-case font-sans">(translation unavailable)</span>:
+                      </span>
+                      <blockquote className="text-2xl font-serif leading-relaxed italic border-l-2 border-primary/30 pl-4 py-1">
+                        {clue.translatedLine}
+                      </blockquote>
+                    </>
+                  ) : clue.translatedLine ? (
+                    <>
+                      <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider">In {clue.translationLanguage}:</span>
+                      <blockquote className="text-2xl font-serif leading-relaxed italic border-l-2 border-primary/30 pl-4 py-1">
+                        {clue.translatedLine}
+                      </blockquote>
+                    </>
+                  ) : (
+                    <div className="text-muted-foreground italic text-sm">Translation unavailable for this track.</div>
+                  )}
                 </div>
               )}
 

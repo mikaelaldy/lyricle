@@ -26,7 +26,8 @@ import {
 
 // ─── Disk cache for album art ──────────────────────────────────────────────────
 // Persists albumArtUrl across server restarts so a cold-start oEmbed failure
-// never leaves Stage 4 without art.
+// never leaves Stage 4 without art. The filename includes the track ID so a
+// day where the song changes (e.g. MXM chart update) never serves stale media.
 
 const DISK_CACHE_DIR = join(process.cwd(), ".puzzle-cache");
 
@@ -35,20 +36,26 @@ interface DiskCacheData {
   previewUrl?: string | null;
 }
 
-async function readDiskCache(date: string): Promise<DiskCacheData> {
+function diskCacheKey(date: string, trackId: string | number): string {
+  return `${date}-${trackId}`;
+}
+
+async function readDiskCache(date: string, trackId: string | number): Promise<DiskCacheData> {
   try {
-    const content = await fsp.readFile(join(DISK_CACHE_DIR, `${date}.json`), "utf-8");
+    const key = diskCacheKey(date, trackId);
+    const content = await fsp.readFile(join(DISK_CACHE_DIR, `${key}.json`), "utf-8");
     return JSON.parse(content) as DiskCacheData;
   } catch {
     return {};
   }
 }
 
-async function writeDiskCache(date: string, data: DiskCacheData): Promise<void> {
+async function writeDiskCache(date: string, trackId: string | number, data: DiskCacheData): Promise<void> {
   try {
     await fsp.mkdir(DISK_CACHE_DIR, { recursive: true });
+    const key = diskCacheKey(date, trackId);
     await fsp.writeFile(
-      join(DISK_CACHE_DIR, `${date}.json`),
+      join(DISK_CACHE_DIR, `${key}.json`),
       JSON.stringify(data),
       "utf-8",
     );
@@ -61,7 +68,7 @@ async function cleanOldDiskCache(today: string): Promise<void> {
   try {
     const files = await fsp.readdir(DISK_CACHE_DIR);
     for (const file of files) {
-      if (file.endsWith(".json") && file !== `${today}.json`) {
+      if (file.endsWith(".json") && !file.startsWith(`${today}-`)) {
         fsp.unlink(join(DISK_CACHE_DIR, file)).catch(() => {});
       }
     }
@@ -230,9 +237,13 @@ export async function getPuzzleCache(): Promise<PuzzleCache | null> {
   const { track, curated } = await loadTodayTrack();
   if (!track && !curated) return null;
 
+  // Stable track identifier used as part of the disk cache key so a song change
+  // during the same UTC day never serves stale art or preview URLs.
+  const trackCacheId: string | number = curated?.id ?? track?.track_id ?? "fallback";
+
   // Resolve album art + preview URL — check disk first so a cold-start failure
   // never leaves Stage 4 without art.
-  const diskData = await readDiskCache(today);
+  const diskData = await readDiskCache(today, trackCacheId);
   let albumArtUrl: string | null = diskData.albumArtUrl ?? null;
   let previewUrl: string | null = diskData.previewUrl ?? null;
 
@@ -268,7 +279,7 @@ export async function getPuzzleCache(): Promise<PuzzleCache | null> {
     }
 
     // Persist so the next cold start skips all fetches
-    await writeDiskCache(today, { albumArtUrl, previewUrl });
+    await writeDiskCache(today, trackCacheId, { albumArtUrl, previewUrl });
   }
 
   cache = {
@@ -348,11 +359,13 @@ async function buildClue0(puzzle: PuzzleCache): Promise<ClueData> {
     }
   }
 
+  // If we have at least some themes, return them; otherwise omit so the
+  // ClueCard renders a graceful "unavailable" state instead of nonsense.
   return {
     stage: 0,
     stageLabel: STAGE_LABELS[0],
-    themes: themes ?? ["mystery", "longing", "night"],
-    mood: mood ?? "Emotional",
+    themes: themes ?? null,
+    mood: mood ?? null,
   };
 }
 
@@ -400,13 +413,15 @@ async function buildClue1(puzzle: PuzzleCache): Promise<ClueData> {
     } catch {}
   }
 
+  // The dev-tier MXM key never returns real translations (always 403), so
+  // anything in translatedLine is an English snippet/lyric. Label it honestly
+  // as "Lyric hint" so players aren't misled into thinking it's a translation.
   return {
     stage: 1,
     stageLabel: STAGE_LABELS[1],
     translatedLine,
-    // When falling back to English snippet, label as "Lyric Clue" not a specific language
-    translationLanguage: translatedLine ? lang.name : null,
-    translationLanguageCode: translatedLine ? lang.code : null,
+    translationLanguage: translatedLine ? "Lyric hint" : null,
+    translationLanguageCode: null,
   };
 }
 

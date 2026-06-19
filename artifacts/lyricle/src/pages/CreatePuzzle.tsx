@@ -58,11 +58,8 @@ export default function CreatePuzzle() {
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    if (isLoaded && !user) {
-      setLocation("/sign-in");
-    }
-  }, [isLoaded, user, setLocation]);
+  // Auth guard is enforced at render time (not via useEffect) so the creation
+  // form never mounts for unauthenticated users — even for a single frame.
 
   useEffect(() => {
     if (!query || query.trim().length < 2) {
@@ -157,7 +154,41 @@ export default function CreatePuzzle() {
     });
   }
 
-  if (!isLoaded) return null;
+  // Render-time auth guard — never mount the creation form for guests.
+  if (!isLoaded) {
+    return (
+      <div className="min-h-[calc(100dvh-64px)] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-[calc(100dvh-64px)] flex items-center justify-center px-4">
+        <div className="max-w-sm w-full text-center space-y-6">
+          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+            <Music2 className="w-8 h-8 text-primary" />
+          </div>
+          <h1 className="font-serif text-2xl font-black">Sign in to create</h1>
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            Create a free account to build custom Lyricle puzzles and share them with friends.
+          </p>
+          <div className="flex flex-col gap-2">
+            <Button className="h-12 gap-2" onClick={() => setLocation("/sign-in")}>
+              Sign in
+            </Button>
+            <Button variant="outline" onClick={() => setLocation("/sign-up")}>
+              Create a free account
+            </Button>
+            <Button variant="ghost" className="text-muted-foreground" onClick={() => setLocation("/")}>
+              Back to home
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[calc(100dvh-64px)] bg-background py-8 px-4">

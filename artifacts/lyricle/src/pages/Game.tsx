@@ -184,10 +184,10 @@ export default function Game() {
     toast({ title: "Fresh attempt!", description: "Your extra try is ready — good luck." });
   };
 
-  const { data: clues = [] } = useGetPuzzleClue(gameState?.stagesRevealed || 1, {
+  const { data: clues = [] } = useGetPuzzleClue(Math.min(gameState?.stagesRevealed ?? 1, 4), {
     query: {
       enabled: !!gameState,
-      queryKey: getGetPuzzleClueQueryKey(gameState?.stagesRevealed || 1)
+      queryKey: getGetPuzzleClueQueryKey(Math.min(gameState?.stagesRevealed ?? 1, 4))
     }
   });
 
