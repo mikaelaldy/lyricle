@@ -13,6 +13,7 @@ import Leaderboard from "@/pages/Leaderboard";
 import CreatePuzzle from "@/pages/CreatePuzzle";
 import PlayPuzzle from "@/pages/PlayPuzzle";
 import NotFound from "@/pages/not-found";
+import FeedbackWidget from "@/components/FeedbackWidget";
 
 const clerkPubKey = publishableKeyFromHost(
   window.location.hostname,
@@ -133,6 +134,7 @@ function App() {
           <TooltipProvider>
             <ClerkQueryClientCacheInvalidator />
             <Router />
+            <FeedbackWidget />
             <Toaster />
           </TooltipProvider>
         </QueryClientProvider>

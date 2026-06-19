@@ -153,6 +153,11 @@ export interface ResultInput {
      */
   solveTimeMs?: number | null;
   /**
+     * ISO 3166-1 alpha-2 country code chosen by the player
+     * @nullable
+     */
+  country?: string | null;
+  /**
      * Clerk user ID if logged in, for persistent stats
      * @nullable
      */
@@ -166,6 +171,11 @@ export interface ResultResponse {
      * @nullable
      */
   streak?: number | null;
+  /**
+     * Points awarded for this result (base + clue bonus + speed bonus)
+     * @nullable
+     */
+  pointsEarned?: number | null;
 }
 
 export interface StreakLeaderboardEntry {

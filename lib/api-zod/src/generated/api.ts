@@ -126,12 +126,14 @@ export const SubmitResultBody = zod.object({
   "cluesUsed": zod.number().min(1).max(submitResultBodyCluesUsedMax),
   "won": zod.boolean(),
   "solveTimeMs": zod.number().nullish().describe('Time from first load to result submission'),
+  "country": zod.string().nullish().describe('ISO 3166-1 alpha-2 country code chosen by the player'),
   "clerkUserId": zod.string().nullish().describe('Clerk user ID if logged in, for persistent stats')
 })
 
 export const SubmitResultResponse = zod.object({
   "ok": zod.boolean(),
-  "streak": zod.number().nullish().describe('Updated streak count after this result')
+  "streak": zod.number().nullish().describe('Updated streak count after this result'),
+  "pointsEarned": zod.number().nullish().describe('Points awarded for this result (base + clue bonus + speed bonus)')
 })
 
 
@@ -180,6 +182,20 @@ export const GetPlayerStreakResponse = zod.object({
   "totalPlays": zod.number(),
   "winCount": zod.number()
 })
+
+
+/**
+ * @summary Get weekly streak leaderboard (top 20 by current streak)
+ */
+export const GetStreakLeaderboardResponseItem = zod.object({
+  "rank": zod.number(),
+  "displayName": zod.string(),
+  "currentStreak": zod.number(),
+  "winCount": zod.number(),
+  "maxStreak": zod.number(),
+  "totalPlays": zod.number()
+})
+export const GetStreakLeaderboardResponse = zod.array(GetStreakLeaderboardResponseItem)
 
 
 /**

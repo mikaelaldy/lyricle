@@ -22,6 +22,11 @@ export interface ResultInput {
      */
   solveTimeMs?: number | null;
   /**
+     * ISO 3166-1 alpha-2 country code chosen by the player
+     * @nullable
+     */
+  country?: string | null;
+  /**
      * Clerk user ID if logged in, for persistent stats
      * @nullable
      */

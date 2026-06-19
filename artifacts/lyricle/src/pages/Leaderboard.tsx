@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { useUser } from "@clerk/react";
+import { flagEmoji, countryName } from "@/lib/countries";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 function apiUrl(path: string) {
@@ -21,6 +22,7 @@ interface GuesserEntry {
   rank: number;
   userId: string;
   displayName: string;
+  country?: string | null;
   points: number;
   puzzlesPlayed: number;
   puzzlesWon: number;
@@ -31,9 +33,25 @@ interface CreatorEntry {
   rank: number;
   userId: string;
   displayName: string;
+  country?: string | null;
   totalPlays: number;
   puzzleCount: number;
   isMe: boolean;
+}
+
+function PlayerName({ name, country }: { name: string; country?: string | null }) {
+  const flag = flagEmoji(country);
+  const title = countryName(country);
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      {flag && (
+        <span className="text-base leading-none" title={title ?? undefined}>
+          {flag}
+        </span>
+      )}
+      <span className="font-medium text-foreground">{name}</span>
+    </span>
+  );
 }
 
 interface LeaderboardResponse<T> {
@@ -187,9 +205,7 @@ export default function Leaderboard() {
                               <RankBadge rank={entry.rank} />
                             </td>
                             <td className="px-6 py-4">
-                              <span className="font-medium text-foreground">
-                                {entry.displayName}
-                              </span>
+                              <PlayerName name={entry.displayName} country={entry.country} />
                               {entry.isMe && (
                                 <span className="ml-2 text-[10px] font-mono text-primary uppercase tracking-wider opacity-70">you</span>
                               )}
@@ -214,7 +230,7 @@ export default function Leaderboard() {
                                 <RankBadge rank={guessers.myEntry.rank} />
                               </td>
                               <td className="px-6 py-4">
-                                <span className="font-medium text-foreground">{guessers.myEntry.displayName}</span>
+                                <PlayerName name={guessers.myEntry.displayName} country={guessers.myEntry.country} />
                                 <span className="ml-2 text-[10px] font-mono text-primary uppercase tracking-wider opacity-70">you</span>
                               </td>
                               <td className="px-6 py-4 text-right font-mono font-bold text-primary">
@@ -282,7 +298,7 @@ export default function Leaderboard() {
                               <RankBadge rank={entry.rank} />
                             </td>
                             <td className="px-6 py-4">
-                              <span className="font-medium text-foreground">{entry.displayName}</span>
+                              <PlayerName name={entry.displayName} country={entry.country} />
                               {entry.isMe && (
                                 <span className="ml-2 text-[10px] font-mono text-primary uppercase tracking-wider opacity-70">you</span>
                               )}
@@ -307,7 +323,7 @@ export default function Leaderboard() {
                                 <RankBadge rank={creators.myEntry.rank} />
                               </td>
                               <td className="px-6 py-4">
-                                <span className="font-medium text-foreground">{creators.myEntry.displayName}</span>
+                                <PlayerName name={creators.myEntry.displayName} country={creators.myEntry.country} />
                                 <span className="ml-2 text-[10px] font-mono text-primary uppercase tracking-wider opacity-70">you</span>
                               </td>
                               <td className="px-6 py-4 text-right font-mono font-bold text-primary">

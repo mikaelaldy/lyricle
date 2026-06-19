@@ -1,7 +1,7 @@
 import { useUser, useClerk } from "@clerk/react";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Trophy, LogOut, LogIn, PlusCircle, Star } from "lucide-react";
+import { Trophy, LogOut, LogIn, PlusCircle, Coins } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -58,12 +58,12 @@ export default function Header() {
         <div className="flex items-center gap-2">
           {isLoaded && user && points !== null && (
             <div
-              className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-mono font-bold"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-b from-amber-400 to-amber-500 text-amber-950 text-sm font-bold shadow-sm shadow-amber-500/30 ring-1 ring-amber-600/30"
               title="Your points"
               data-testid="points-badge"
             >
-              <Star className="w-3 h-3 fill-primary" />
-              {points.toLocaleString()}
+              <Coins className="w-4 h-4" />
+              <span className="font-mono tabular-nums">{points.toLocaleString()}</span>
             </div>
           )}
 

@@ -11,6 +11,7 @@ export const dailyResultsTable = pgTable("daily_results", {
   cluesUsed: integer("clues_used").notNull(),
   won: boolean("won").notNull(),
   solveTimeMs: integer("solve_time_ms"),
+  country: text("country"),
   clerkUserId: text("clerk_user_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

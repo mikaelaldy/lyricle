@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request } from "express";
 import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
-import { dailyResultsTable, playerStreaksTable } from "@workspace/db";
+import { dailyResultsTable, playerStreaksTable, userStatsTable } from "@workspace/db";
 import { eq, and, sql, desc } from "drizzle-orm";
 import {
   GetPuzzleClueParams,
@@ -23,6 +23,22 @@ import { searchCuratedSongs } from "../lib/curated-puzzles";
 import { searchItunesTracks } from "../lib/itunes";
 
 const router: IRouter = Router();
+
+// Daily puzzle score: win base + fewer-clues bonus + speed bonus (all stack).
+// Faster solves and fewer clues earn more. Max ≈ 170 for an instant 1-clue win.
+function computeDailyScore(won: boolean, cluesUsed: number, solveTimeMs: number | null): number {
+  if (!won) return 0;
+  const base = 50;
+  const clampedClues = Math.min(5, Math.max(1, cluesUsed));
+  const clueBonus = (5 - clampedClues) * 15; // 0..60
+  let speedBonus = 0;
+  if (solveTimeMs != null && solveTimeMs > 0) {
+    const secs = solveTimeMs / 1000;
+    // 60 pts for an instant solve, decaying to 0 at ~180s.
+    speedBonus = Math.max(0, Math.min(60, Math.round(60 - secs / 3)));
+  }
+  return base + clueBonus + speedBonus;
+}
 
 // GET /puzzle/today
 router.get("/puzzle/today", async (_req, res): Promise<void> => {
@@ -132,10 +148,12 @@ router.post("/puzzle/result", async (req, res): Promise<void> => {
 
   const today = getTodayDateString();
   const puzzleNumber = getPuzzleNumber();
-  const { playerId, displayName, cluesUsed, won, solveTimeMs } = parsed.data;
+  const { playerId, displayName, cluesUsed, won, solveTimeMs, country } = parsed.data;
 
   // Derive clerkUserId server-side from Clerk auth — never trust client-provided value
   const { userId: clerkUserId } = getAuth(req as Request);
+
+  const pointsEarned = computeDailyScore(won, cluesUsed, solveTimeMs ?? null);
 
   // Upsert daily result (one per player per day)
   const existing = await db
@@ -153,20 +171,54 @@ router.post("/puzzle/result", async (req, res): Promise<void> => {
       cluesUsed,
       won,
       solveTimeMs: solveTimeMs ?? null,
+      country: country ?? null,
       clerkUserId: clerkUserId ?? null,
     });
+
+    // Award daily-puzzle points to the leaderboard for logged-in players (first submit only).
+    if (clerkUserId) {
+      await db
+        .insert(userStatsTable)
+        .values({
+          userId: clerkUserId,
+          points: pointsEarned,
+          puzzlesCreated: 0,
+          puzzlesPlayed: 1,
+          puzzlesWon: won ? 1 : 0,
+          playsToday: 0,
+        })
+        .onConflictDoUpdate({
+          target: userStatsTable.userId,
+          set: {
+            points: sql`${userStatsTable.points} + ${pointsEarned}`,
+            puzzlesPlayed: sql`${userStatsTable.puzzlesPlayed} + 1`,
+            puzzlesWon: sql`${userStatsTable.puzzlesWon} + ${won ? 1 : 0}`,
+          },
+        });
+    }
+  } else if (country && !existing[0].country) {
+    // Backfill country if the player picked one after their first submit.
+    await db
+      .update(dailyResultsTable)
+      .set({ country })
+      .where(eq(dailyResultsTable.id, existing[0].id));
   }
 
-  // Update streak for anonymous player
+  // Update streak — only on the first submit of the day. Resubmits are
+  // idempotent: the daily result is immutable once recorded, so we never
+  // re-run streak math (which would let a later loss reset an earlier win).
   const streakRows = await db
     .select()
     .from(playerStreaksTable)
     .where(eq(playerStreaksTable.playerId, playerId))
     .limit(1);
 
-  let newStreak = 1;
+  let newStreak = 0;
 
-  if (streakRows.length === 0) {
+  if (existing.length > 0) {
+    // Already submitted today: echo the stored streak without mutating it.
+    newStreak = streakRows[0]?.currentStreak ?? 0;
+  } else if (streakRows.length === 0) {
     await db.insert(playerStreaksTable).values({
       playerId,
       currentStreak: won ? 1 : 0,
@@ -200,13 +252,13 @@ router.post("/puzzle/result", async (req, res): Promise<void> => {
         currentStreak,
         maxStreak: Math.max(row.maxStreak, currentStreak),
         lastPlayedDate: today,
-        totalPlays: row.totalPlays + (existing.length === 0 ? 1 : 0),
-        winCount: row.winCount + (won && existing.length === 0 ? 1 : 0),
+        totalPlays: row.totalPlays + 1,
+        winCount: row.winCount + (won ? 1 : 0),
       })
       .where(eq(playerStreaksTable.playerId, playerId));
   }
 
-  res.json({ ok: true, streak: newStreak });
+  res.json({ ok: true, streak: newStreak, pointsEarned: existing.length === 0 ? pointsEarned : 0 });
 });
 
 // GET /puzzle/leaderboard
@@ -229,6 +281,7 @@ router.get("/puzzle/leaderboard", async (_req, res): Promise<void> => {
     cluesUsed: r.cluesUsed,
     solveTimeMs: r.solveTimeMs,
     won: r.won,
+    country: r.country,
   }));
 
   res.json(leaderboard);

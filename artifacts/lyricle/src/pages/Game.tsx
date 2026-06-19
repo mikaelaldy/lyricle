@@ -8,12 +8,45 @@ import ClueCard from "@/components/ClueCard";
 import GuessInput from "@/components/GuessInput";
 import ResultModal from "@/components/ResultModal";
 import StatsModal from "@/components/StatsModal";
-import { getDailyState, saveDailyState, getPlayerData, DailyState, hasSeenTutorial, setSeenTutorial } from "@/lib/storage";
+import { getDailyState, saveDailyState, getPlayerData, savePlayerData, DailyState, hasSeenTutorial, setSeenTutorial } from "@/lib/storage";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { queryClient } from "@/lib/queryClient";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, HelpCircle } from "lucide-react";
+import { Loader2, HelpCircle, Timer } from "lucide-react";
+
+const basePathHref = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+function formatTime(ms: number): string {
+  const totalSec = Math.max(0, Math.floor(ms / 1000));
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+function LiveTimer({ startTimeMs, completed, frozenMs }: { startTimeMs: number; completed: boolean; frozenMs: number | null | undefined }) {
+  const [elapsed, setElapsed] = useState(() => Date.now() - startTimeMs);
+
+  useEffect(() => {
+    if (completed) return;
+    setElapsed(Date.now() - startTimeMs);
+    const id = setInterval(() => setElapsed(Date.now() - startTimeMs), 1000);
+    return () => clearInterval(id);
+  }, [completed, startTimeMs]);
+
+  const display = completed ? formatTime(frozenMs ?? 0) : formatTime(elapsed);
+
+  return (
+    <div
+      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary/70 border border-border font-mono text-sm font-bold tabular-nums"
+      title={completed ? "Your solve time" : "Time elapsed"}
+      data-testid="live-timer"
+    >
+      <Timer className={`w-4 h-4 ${completed ? "text-muted-foreground" : "text-primary"}`} />
+      {display}
+    </div>
+  );
+}
 
 export default function Game() {
   const { user, isLoaded: clerkLoaded } = useUser();
@@ -70,19 +103,21 @@ export default function Game() {
         const newGuesses = [...gameState.guesses, { artist, title, correct: result.correct, hint: result.hint || null }];
         const won = result.correct;
         const completed = won || newGuesses.length >= 5;
-        const newState = {
+        const solveTimeMs = completed ? Date.now() - gameState.startTimeMs : gameState.solveTimeMs ?? null;
+        const newState: DailyState = {
           ...gameState,
           guesses: newGuesses,
           won,
           completed,
+          solveTimeMs,
           stagesRevealed: completed ? gameState.stagesRevealed : Math.min(gameState.stagesRevealed + 1, 5)
         };
-        
+
         setGameState(newState);
         saveDailyState(gameState.puzzleNumber, newState);
 
         if (completed) {
-          handleGameComplete(newState);
+          setShowResult(true);
         } else {
           toast({
             title: "Wrong guess!",
@@ -94,27 +129,59 @@ export default function Game() {
     });
   };
 
-  const handleGameComplete = (finalState: DailyState) => {
+  const handleSubmitScore = async (country: string | null) => {
+    if (!gameState) return;
     const player = getPlayerData();
-    const solveTimeMs = Date.now() - finalState.startTimeMs;
+    if (country) {
+      player.country = country;
+      savePlayerData(player);
+    }
 
-    submitResult.mutate({
-      data: {
-        playerId: player.playerId,
-        displayName: user?.firstName || player.displayName || "Anonymous",
-        cluesUsed: finalState.guesses.length,
-        won: finalState.won,
-        solveTimeMs,
-        clerkUserId: user?.id || null
-      }
-    }, {
-      onSuccess: () => {
-        const updatedState = { ...finalState, resultSubmitted: true };
-        setGameState(updatedState);
-        saveDailyState(finalState.puzzleNumber, updatedState);
-        setShowResult(true);
-      }
+    return new Promise<void>((resolve, reject) => {
+      submitResult.mutate({
+        data: {
+          playerId: player.playerId,
+          displayName: user?.firstName || player.displayName || "Anonymous",
+          cluesUsed: gameState.guesses.length,
+          won: gameState.won,
+          solveTimeMs: gameState.solveTimeMs ?? null,
+          country: country ?? player.country ?? null,
+          clerkUserId: user?.id || null,
+        }
+      }, {
+        onSuccess: (res: any) => {
+          const updatedState: DailyState = {
+            ...gameState,
+            resultSubmitted: true,
+            country: country ?? gameState.country ?? null,
+            pointsEarned: res?.pointsEarned ?? gameState.pointsEarned ?? 0,
+          };
+          setGameState(updatedState);
+          saveDailyState(gameState.puzzleNumber, updatedState);
+          window.dispatchEvent(new Event("lyricle:points-updated"));
+          resolve();
+        },
+        onError: (err) => reject(err),
+      });
     });
+  };
+
+  const handleRetry = () => {
+    if (!gameState || gameState.retryUsed || gameState.resultSubmitted) return;
+    const resetState: DailyState = {
+      ...gameState,
+      guesses: [],
+      completed: false,
+      won: false,
+      stagesRevealed: 1,
+      startTimeMs: Date.now(),
+      solveTimeMs: null,
+      retryUsed: true,
+    };
+    setGameState(resetState);
+    saveDailyState(gameState.puzzleNumber, resetState);
+    setShowResult(false);
+    toast({ title: "Fresh attempt!", description: "Your extra try is ready — good luck." });
   };
 
   const { data: clues = [] } = useGetPuzzleClue(gameState?.stagesRevealed || 1, {
@@ -164,9 +231,16 @@ export default function Game() {
               Issue #{puzzle.puzzleNumber} • {new Date(puzzle.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
             </p>
           </div>
-          <Button variant="ghost" size="icon" onClick={() => setShowTutorial(true)} data-testid="button-help">
-            <HelpCircle className="w-5 h-5" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <LiveTimer
+              startTimeMs={gameState.startTimeMs}
+              completed={gameState.completed}
+              frozenMs={gameState.solveTimeMs}
+            />
+            <Button variant="ghost" size="icon" onClick={() => setShowTutorial(true)} data-testid="button-help">
+              <HelpCircle className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
 
         <div className="space-y-6">
@@ -211,8 +285,13 @@ export default function Game() {
         open={showResult} 
         onOpenChange={setShowResult} 
         state={gameState}
+        isLoggedIn={!!user}
+        submitting={submitResult.isPending}
+        onSubmitScore={handleSubmitScore}
+        onRetry={handleRetry}
+        onSignIn={() => { window.location.href = `${basePathHref}/sign-in`; }}
         onOpenStats={() => { setShowResult(false); setShowStats(true); }}
-        onOpenLeaderboard={() => { window.location.href = "/leaderboard"; }}
+        onOpenLeaderboard={() => { window.location.href = `${basePathHref}/leaderboard`; }}
       />
 
       <StatsModal 

@@ -7,11 +7,16 @@ export interface DailyState {
   won: boolean;
   startTimeMs: number;
   resultSubmitted: boolean;
+  solveTimeMs?: number | null;
+  country?: string | null;
+  pointsEarned?: number | null;
+  retryUsed?: boolean;
 }
 
 export interface PlayerData {
   playerId: string;
   displayName: string;
+  country?: string;
 }
 
 export const getDailyState = (puzzleNumber: number): DailyState | null => {

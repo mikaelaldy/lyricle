@@ -22,4 +22,5 @@ export * from './resultInput';
 export * from './resultResponse';
 export * from './richsyncWord';
 export * from './songReveal';
+export * from './streakLeaderboardEntry';
 export * from './trackSuggestion';

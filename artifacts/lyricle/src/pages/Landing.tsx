@@ -203,7 +203,7 @@ export default function Landing() {
                 onClick={goToGame}
                 className="bg-primary hover:bg-primary/90 text-white font-bold px-8 h-12 rounded-full text-base gap-2 shadow-lg shadow-primary/25"
               >
-                Play Today's Puzzle <ArrowRight className="w-4 h-4" />
+                Play the Puzzle <ArrowRight className="w-4 h-4" />
               </Button>
               {!user && (
                 <Button size="lg" variant="outline" onClick={() => setLocation("/sign-up")} className="h-12 rounded-full font-semibold px-8">
@@ -214,6 +214,68 @@ export default function Landing() {
           </motion.div>
 
           <MockPuzzleCard />
+        </div>
+      </section>
+
+      {/* ── Two modes ──────────────────────────────────────────────────── */}
+      <section className="py-16 px-6">
+        <div className="max-w-5xl mx-auto">
+          <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }} className="text-center mb-10">
+            <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-3">Two ways to play</h2>
+            <p className="text-gray-500 text-lg">Jump into today's challenge, or become the puzzle master.</p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Guest play */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4 }}
+              className="flex flex-col p-8 bg-white border-2 border-primary/20 rounded-3xl hover:border-primary/40 hover:shadow-lg transition-all"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-5">
+                <Mic2 className="w-6 h-6 text-primary" />
+              </div>
+              <h3 className="text-2xl font-black text-gray-900 mb-2">Play the daily puzzle</h3>
+              <p className="text-gray-500 leading-relaxed mb-6 flex-1">
+                No account needed. Five clues, one song — beat the clock, build a streak, and share your result with friends.
+              </p>
+              <Button
+                size="lg"
+                onClick={goToGame}
+                className="bg-primary hover:bg-primary/90 text-white font-bold h-12 rounded-full gap-2 shadow-md shadow-primary/20"
+                data-testid="button-mode-play"
+              >
+                Play now — it's free <ArrowRight className="w-4 h-4" />
+              </Button>
+            </motion.div>
+
+            {/* Create to share */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, delay: 0.08 }}
+              className="flex flex-col p-8 bg-gray-900 text-white rounded-3xl hover:shadow-xl transition-all"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center mb-5">
+                <Share2 className="w-6 h-6 text-primary" />
+              </div>
+              <h3 className="text-2xl font-black mb-2">Create &amp; share your own</h3>
+              <p className="text-white/60 leading-relaxed mb-6 flex-1">
+                Pick any song, write a clue only a true fan would get, and challenge your friends. Earn points every time someone plays.
+              </p>
+              <Button
+                size="lg"
+                onClick={() => setLocation(user ? "/create" : "/sign-up")}
+                className="bg-white text-gray-900 hover:bg-white/90 font-bold h-12 rounded-full gap-2"
+                data-testid="button-mode-create"
+              >
+                {user ? "Create a puzzle" : "Sign up to create"} <ArrowRight className="w-4 h-4" />
+              </Button>
+            </motion.div>
+          </div>
         </div>
       </section>
 

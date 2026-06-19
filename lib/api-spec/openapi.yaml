@@ -416,6 +416,9 @@ components:
         solveTimeMs:
           type: ["integer", "null"]
           description: Time from first load to result submission
+        country:
+          type: ["string", "null"]
+          description: ISO 3166-1 alpha-2 country code chosen by the player
         clerkUserId:
           type: ["string", "null"]
           description: Clerk user ID if logged in, for persistent stats
@@ -433,6 +436,9 @@ components:
         streak:
           type: ["integer", "null"]
           description: Updated streak count after this result
+        pointsEarned:
+          type: ["integer", "null"]
+          description: Points awarded for this result (base + clue bonus + speed bonus)
       required:
         - ok
 

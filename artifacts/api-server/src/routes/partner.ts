@@ -121,12 +121,54 @@ router.get("/artist/concerts", async (req, res): Promise<void> => {
 });
 
 // ─── GET /track/stats?artist=<name>&title=<title> ────────────────────────────
-// Proxies Songstats API. Returns Spotify stream count for the track.
+// Proxies Songstats API. Returns Spotify stream count (backward compat) plus a
+// curated set of cross-platform facts (Spotify / Apple Music / YouTube / TikTok /
+// Shazam / SoundCloud / Deezer) for the "Get to know the song" card.
 //
 // Songstats API shape (enterprise/v1):
 //   Search:  GET /tracks/search?q=<query>&limit=N  → { result, results: [{ songstats_track_id, title, artists }] }
-//   Stats:   GET /tracks/stats?songstats_track_id=<id>&source=spotify
-//            → { result, stats: [{ source, data: { streams_total: "1234567890.0" } }] }
+//   Stats:   GET /tracks/stats?songstats_track_id=<id>&source=spotify,youtube,...
+//            → { result, stats: [{ source, data: { ...metrics } }] }
+
+// A single cross-platform stat shown on the "Get to know the song/artist" card.
+export interface TrackFact {
+  source: string; // e.g. "spotify"
+  label: string; // e.g. "Spotify Streams"
+  value: number; // raw numeric value (frontend formats)
+}
+
+const STATS_SOURCES = [
+  "spotify",
+  "apple_music",
+  "youtube",
+  "tiktok",
+  "shazam",
+  "soundcloud",
+  "deezer",
+] as const;
+
+// Which metric(s) to surface per source, in display priority order.
+const FACT_MAP: Record<string, Array<{ key: string; label: string }>> = {
+  spotify: [
+    { key: "streams_total", label: "Spotify Streams" },
+    { key: "playlist_reach_total", label: "Spotify Playlist Reach" },
+  ],
+  apple_music: [{ key: "playlists_total", label: "Apple Music Playlists" }],
+  youtube: [{ key: "video_views_total", label: "YouTube Views" }],
+  tiktok: [
+    { key: "views_total", label: "TikTok Views" },
+    { key: "videos_total", label: "TikTok Videos" },
+  ],
+  shazam: [{ key: "shazams_total", label: "Shazams" }],
+  soundcloud: [{ key: "streams_total", label: "SoundCloud Plays" }],
+  deezer: [{ key: "playlist_reach_total", label: "Deezer Playlist Reach" }],
+};
+
+function toNumber(v: unknown): number | null {
+  if (v == null) return null;
+  const n = Math.round(parseFloat(String(v)));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
 
 router.get("/track/stats", async (req, res): Promise<void> => {
   const artist = typeof req.query.artist === "string" ? req.query.artist.trim() : "";
@@ -139,7 +181,7 @@ router.get("/track/stats", async (req, res): Promise<void> => {
 
   if (!SONGSTATS_KEY) {
     logger.warn("SONGSTATS_API_KEY not set — returning null stream count");
-    res.json({ streams: null });
+    res.json({ streams: null, facts: [] });
     return;
   }
 
@@ -164,7 +206,7 @@ router.get("/track/stats", async (req, res): Promise<void> => {
     });
 
     if (searchData?.result !== "success" || !searchData.results?.length) {
-      res.json({ streams: null });
+      res.json({ streams: null, facts: [] });
       return;
     }
 
@@ -178,22 +220,20 @@ router.get("/track/stats", async (req, res): Promise<void> => {
       ) ?? searchData.results[0];
 
     if (!track?.songstats_track_id) {
-      res.json({ streams: null });
+      res.json({ streams: null, facts: [] });
       return;
     }
 
-    // Step 2: fetch Spotify stats using the Songstats track ID
+    // Step 2: fetch multi-source stats using the Songstats track ID
     const statsUrl = new URL("https://api.songstats.com/enterprise/v1/tracks/stats");
     statsUrl.searchParams.set("songstats_track_id", track.songstats_track_id);
-    statsUrl.searchParams.set("source", "spotify");
+    statsUrl.searchParams.set("source", STATS_SOURCES.join(","));
 
     type SongstatsStatsResult = {
       result: string;
       stats?: Array<{
         source: string;
-        data?: {
-          streams_total?: string | number;
-        };
+        data?: Record<string, string | number | null>;
       }>;
     };
 
@@ -202,18 +242,28 @@ router.get("/track/stats", async (req, res): Promise<void> => {
     });
 
     if (statsData?.result !== "success" || !statsData.stats?.length) {
-      res.json({ streams: null });
+      res.json({ streams: null, facts: [] });
       return;
     }
 
-    const spotifyStats = statsData.stats.find((s) => s.source === "spotify");
-    const rawStreams = spotifyStats?.data?.streams_total;
-    const streams = rawStreams != null ? Math.round(parseFloat(String(rawStreams))) : null;
+    const bySource = new Map(statsData.stats.map((s) => [s.source, s.data ?? {}]));
 
-    res.json({ streams: streams && streams > 0 ? streams : null });
+    const facts: TrackFact[] = [];
+    for (const source of STATS_SOURCES) {
+      const data = bySource.get(source);
+      if (!data) continue;
+      for (const { key, label } of FACT_MAP[source] ?? []) {
+        const value = toNumber(data[key]);
+        if (value != null) facts.push({ source, label, value });
+      }
+    }
+
+    const spotifyStreams = toNumber(bySource.get("spotify")?.streams_total);
+
+    res.json({ streams: spotifyStreams, facts });
   } catch (err) {
     logger.error({ err, artist, title }, "Songstats stats error");
-    res.json({ streams: null });
+    res.json({ streams: null, facts: [] });
   }
 });
 

@@ -13,4 +13,9 @@ export interface ResultResponse {
      * @nullable
      */
   streak?: number | null;
+  /**
+     * Points awarded for this result (base + clue bonus + speed bonus)
+     * @nullable
+     */
+  pointsEarned?: number | null;
 }

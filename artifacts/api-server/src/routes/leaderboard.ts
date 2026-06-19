@@ -6,14 +6,14 @@ import { eq, desc, sql, count } from "drizzle-orm";
 
 const router: IRouter = Router();
 
-async function getDisplayName(userId: string): Promise<string> {
+async function getDisplayInfo(userId: string): Promise<{ displayName: string; country: string | null }> {
   const rows = await db
-    .select({ displayName: dailyResultsTable.displayName })
+    .select({ displayName: dailyResultsTable.displayName, country: dailyResultsTable.country })
     .from(dailyResultsTable)
     .where(eq(dailyResultsTable.clerkUserId, userId))
     .orderBy(desc(dailyResultsTable.createdAt))
     .limit(1);
-  return rows[0]?.displayName ?? "Anonymous";
+  return { displayName: rows[0]?.displayName ?? "Anonymous", country: rows[0]?.country ?? null };
 }
 
 // GET /leaderboard/guessers — top 50 by points; include user's own rank if outside top 50
@@ -32,12 +32,13 @@ router.get("/leaderboard/guessers", async (req, res): Promise<void> => {
     .orderBy(desc(userStatsTable.points))
     .limit(50);
 
-  const displayNames = await Promise.all(top50.map((r) => getDisplayName(r.userId)));
+  const infos = await Promise.all(top50.map((r) => getDisplayInfo(r.userId)));
 
   const entries = top50.map((r, i) => ({
     rank: i + 1,
     userId: r.userId,
-    displayName: displayNames[i],
+    displayName: infos[i].displayName,
+    country: infos[i].country,
     points: r.points,
     puzzlesPlayed: r.puzzlesPlayed,
     puzzlesWon: r.puzzlesWon,
@@ -59,11 +60,12 @@ router.get("/leaderboard/guessers", async (req, res): Promise<void> => {
         .from(userStatsTable)
         .where(sql`${userStatsTable.points} > ${myStats[0].points}`);
       const myRank = (rankRow[0]?.cnt ?? 0) + 1;
-      const myName = await getDisplayName(myUserId);
+      const myInfo = await getDisplayInfo(myUserId);
       myEntry = {
         rank: myRank,
         userId: myUserId,
-        displayName: myName,
+        displayName: myInfo.displayName,
+        country: myInfo.country,
         points: myStats[0].points,
         puzzlesPlayed: myStats[0].puzzlesPlayed,
         puzzlesWon: myStats[0].puzzlesWon,
@@ -91,12 +93,13 @@ router.get("/leaderboard/creators", async (req, res): Promise<void> => {
     .orderBy(desc(sql`SUM(${customPuzzlesTable.playCount})`))
     .limit(50);
 
-  const displayNames = await Promise.all(top50.map((r) => getDisplayName(r.creatorId)));
+  const infos = await Promise.all(top50.map((r) => getDisplayInfo(r.creatorId)));
 
   const entries = top50.map((r, i) => ({
     rank: i + 1,
     userId: r.creatorId,
-    displayName: displayNames[i],
+    displayName: infos[i].displayName,
+    country: infos[i].country,
     totalPlays: Number(r.totalPlays),
     puzzleCount: Number(r.puzzleCount),
     isMe: r.creatorId === myUserId,
@@ -126,11 +129,12 @@ router.get("/leaderboard/creators", async (req, res): Promise<void> => {
         .where(sql`sub.total > ${Number(myAgg[0].totalPlays)}`);
 
       const myRank = (rankRow[0]?.cnt ?? 0) + 1;
-      const myName = await getDisplayName(myUserId);
+      const myInfo = await getDisplayInfo(myUserId);
       myEntry = {
         rank: myRank,
         userId: myUserId,
-        displayName: myName,
+        displayName: myInfo.displayName,
+        country: myInfo.country,
         totalPlays: Number(myAgg[0].totalPlays),
         puzzleCount: Number(myAgg[0].puzzleCount),
         isMe: true,
