@@ -30,15 +30,6 @@ async function jsonGet<T>(url: string, headers: Record<string, string> = {}): Pr
   }
 }
 
-/** Convert an artist name to a JamBase-style slug: lowercase, spaces → hyphens. */
-function toSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-");
-}
-
 function formatDate(dateStr: string): string {
   try {
     return new Date(dateStr).toLocaleDateString("en-US", {
@@ -53,7 +44,9 @@ function formatDate(dateStr: string): string {
 }
 
 // ─── GET /artist/concerts?artist=<name> ──────────────────────────────────────
-// Proxies JamBase events API. Returns up to 3 upcoming events for the artist.
+// Proxies JamBase v3 events API. Returns up to 3 upcoming events for the artist.
+// Auth: Bearer token in Authorization header (v3 — NOT the old v1 ?apikey= param).
+// Docs: https://data.jambase.com/api/docs/getting-started
 
 interface JamBaseEvent {
   name: string;
@@ -87,24 +80,25 @@ router.get("/artist/concerts", async (req, res): Promise<void> => {
   }
 
   try {
-    const slug = toSlug(artist);
-    const url = new URL("https://www.jambase.com/jb-api/v1/events");
-    url.searchParams.set("artistSlug", slug);
-    url.searchParams.set("apikey", JAMBASE_KEY);
-    url.searchParams.set("page", "0");
+    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+
+    const url = new URL("https://api.data.jambase.com/v3/events");
+    url.searchParams.set("artistName", artist);
+    url.searchParams.set("eventDateFrom", today);
     url.searchParams.set("perPage", "3");
+    url.searchParams.set("page", "1");
 
-    type JamBaseResponse = { success: boolean; events?: JamBaseEvent[]; errors?: Array<{ code: string; message: string }> };
-    const data = await jsonGet<JamBaseResponse>(url.toString());
+    const headers = {
+      "Authorization": `Bearer ${JAMBASE_KEY}`,
+      "Accept": "application/json",
+      "User-Agent": "Lyricle/1.0",
+    };
 
-    if (!data?.success) {
-      // Key invalid or rate-limited — log and degrade gracefully
-      logger.warn({ errors: data?.errors }, "JamBase API returned unsuccessful response");
-      res.json({ concerts: [] });
-      return;
-    }
+    // v3 response: { events: [...], totalItems: N } — no "success" wrapper
+    type JamBaseV3Response = { events?: JamBaseEvent[]; totalItems?: number };
+    const data = await jsonGet<JamBaseV3Response>(url.toString(), headers);
 
-    if (!data.events?.length) {
+    if (!data?.events?.length) {
       res.json({ concerts: [] });
       return;
     }
