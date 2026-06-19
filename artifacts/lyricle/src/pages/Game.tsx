@@ -184,7 +184,7 @@ export default function Game() {
         </div>
 
         <div className="mt-12 sticky bottom-8 z-40">
-          <div className="bg-card/80 backdrop-blur-xl border border-border p-6 rounded-2xl shadow-2xl ring-1 ring-white/10">
+          <div className="bg-card border border-border p-6 rounded-2xl shadow-md">
             <GuessInput 
               onGuess={handleGuess} 
               disabled={gameState.completed || submitGuess.isPending} 
@@ -275,7 +275,7 @@ export default function Game() {
               value={displayName} 
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="Your Stage Name"
-              className="w-full h-12 bg-black/20 border border-border rounded-lg px-4 font-sans focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full h-12 bg-secondary/60 border border-border rounded-lg px-4 font-sans focus:outline-none focus:ring-1 focus:ring-primary"
               data-testid="input-display-name"
             />
           </div>

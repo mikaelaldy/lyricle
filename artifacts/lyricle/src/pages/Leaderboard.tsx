@@ -161,7 +161,7 @@ export default function Leaderboard() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left font-sans">
                   <thead>
-                    <tr className="bg-black/20 text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border">
+                    <tr className="bg-secondary/40 text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border">
                       <th className="px-6 py-4 font-medium">Rank</th>
                       <th className="px-6 py-4 font-medium">Player</th>
                       <th className="px-6 py-4 font-medium text-right">⭐ Points</th>
@@ -256,7 +256,7 @@ export default function Leaderboard() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left font-sans">
                   <thead>
-                    <tr className="bg-black/20 text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border">
+                    <tr className="bg-secondary/40 text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border">
                       <th className="px-6 py-4 font-medium">Rank</th>
                       <th className="px-6 py-4 font-medium">Creator</th>
                       <th className="px-6 py-4 font-medium text-right">🎵 Total Plays</th>

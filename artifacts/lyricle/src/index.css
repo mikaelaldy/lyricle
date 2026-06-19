@@ -1,10 +1,8 @@
 @layer theme, base, clerk, components, utilities;
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Space+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
-
-@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: hsl(var(--background));
@@ -69,43 +67,69 @@
 }
 
 :root {
-  --background: 30 10% 5%;
-  --foreground: 40 67% 91%;
-  --border: 42 18% 20%;
-  --input: 42 18% 20%;
-  --ring: 52 76% 60%;
+  /* ── Backgrounds ─────────────────────────────────────────── */
+  --background: 0 0% 100%;           /* pure white */
+  --foreground: 222 47% 11%;         /* near-black */
+  --border: 220 13% 91%;             /* light gray border */
+  --input: 220 13% 91%;
+  --ring: 18 100% 50%;               /* orange focus ring */
 
-  --card: 43 14% 9%;
-  --card-foreground: 40 67% 91%;
-  --card-border: 42 12% 15%;
+  /* ── Cards / Surfaces ────────────────────────────────────── */
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --card-border: 220 13% 91%;
 
-  --popover: 43 14% 9%;
-  --popover-foreground: 40 67% 91%;
-  --popover-border: 42 12% 15%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --popover-border: 220 13% 91%;
 
-  --primary: 52 76% 60%;
-  --primary-foreground: 30 10% 5%;
+  /* ── Brand / Primary — Musixmatch orange ─────────────────── */
+  --primary: 18 100% 50%;            /* #FF5500 */
+  --primary-foreground: 0 0% 100%;   /* white on orange */
 
-  --secondary: 42 12% 15%;
-  --secondary-foreground: 40 67% 91%;
+  /* ── Secondary surface ───────────────────────────────────── */
+  --secondary: 210 40% 96%;          /* very light gray */
+  --secondary-foreground: 222 47% 11%;
 
-  --muted: 42 12% 15%;
-  --muted-foreground: 40 10% 60%;
+  /* ── Muted / subdued ─────────────────────────────────────── */
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
 
-  --accent: 52 76% 60%;
-  --accent-foreground: 30 10% 5%;
+  /* ── Accent ──────────────────────────────────────────────── */
+  --accent: 18 100% 96%;             /* very light orange tint */
+  --accent-foreground: 18 100% 38%;  /* dark orange text */
 
+  /* ── Destructive ─────────────────────────────────────────── */
   --destructive: 0 84% 60%;
-  --destructive-foreground: 40 67% 91%;
+  --destructive-foreground: 0 0% 100%;
 
-  --app-font-sans: 'Space Grotesk', sans-serif;
-  --app-font-serif: 'Playfair Display', serif;
+  /* ── Charts ──────────────────────────────────────────────── */
+  --chart-1: 18 100% 50%;
+  --chart-2: 221 83% 53%;
+  --chart-3: 142 71% 45%;
+  --chart-4: 262 83% 58%;
+  --chart-5: 330 81% 60%;
+
+  /* ── Sidebar ─────────────────────────────────────────────── */
+  --sidebar: 0 0% 100%;
+  --sidebar-foreground: 222 47% 11%;
+  --sidebar-border: 220 13% 91%;
+  --sidebar-primary: 18 100% 50%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 210 40% 96%;
+  --sidebar-accent-foreground: 222 47% 11%;
+  --sidebar-ring: 18 100% 50%;
+
+  /* ── Typography ──────────────────────────────────────────── */
+  --app-font-sans: 'Inter', sans-serif;
+  --app-font-serif: 'Outfit', sans-serif;
   --app-font-mono: 'JetBrains Mono', monospace;
-  --radius: 0.5rem;
+  --radius: 0.625rem;
 
-  --elevate-1: rgba(255, 255, 255, 0.04);
-  --elevate-2: rgba(255, 255, 255, 0.09);
-  --opaque-button-border-intensity: 9;
+  /* ── Elevation (light-mode: subtle dark overlays) ────────── */
+  --elevate-1: rgba(0, 0, 0, 0.04);
+  --elevate-2: rgba(0, 0, 0, 0.08);
+  --opaque-button-border-intensity: -9;   /* darken borders slightly */
 
   --primary-border: hsl(from hsl(var(--primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
   --secondary-border: hsl(from hsl(var(--secondary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
@@ -130,75 +154,40 @@
 
 
 /**
- * Using the elevate system.
- * Automatic contrast adjustment.
- *
- * <element className="hover-elevate" />
- * <element className="active-elevate-2" />
- *
- * // Using the tailwind utility when a data attribute is "on"
- * <element className="toggle-elevate data-[state=on]:toggle-elevated" />
- * // Or manually controlling the toggle state
- * <element className="toggle-elevate toggle-elevated" />
- *
- * Elevation systems have to handle many states.
- * - not-hovered, vs. hovered vs. active  (three mutually exclusive states)
- * - toggled or not
- * - focused or not (this is not handled with these utilities)
- *
- * Even without handling focused or not, this is six possible combinations that
- * need to be distinguished from eachother visually.
+ * Elevation utilities (light theme: subtle dark overlays)
  */
 @layer utilities {
-
-  /* Hide ugly search cancel button in Chrome until we can style it properly */
   input[type="search"]::-webkit-search-cancel-button {
     @apply hidden;
   }
 
-  /* Placeholder styling for contentEditable div */
   [contenteditable][data-placeholder]:empty::before {
     content: attr(data-placeholder);
     color: hsl(var(--muted-foreground));
     pointer-events: none;
   }
 
-  /* .no-default-hover-elevate/no-default-active-elevate is an escape hatch so consumers of
-   * buttons/badges can remove the automatic brightness adjustment on interactions
-   * and program their own. */
   .no-default-hover-elevate {}
-
   .no-default-active-elevate {}
 
-
-  /**
-   * Toggleable backgrounds go behind the content. Hoverable/active goes on top.
-   * This way they can stack/compound. Both will overlap the parent's borders!
-   * So borders will be automatically adjusted both on toggle, and hover/active,
-   * and they will be compounded.
-   */
   .toggle-elevate::before,
   .toggle-elevate-2::before {
     content: "";
     pointer-events: none;
     position: absolute;
     inset: 0px;
-    /*border-radius: inherit;   match rounded corners */
     border-radius: inherit;
     z-index: -1;
-    /* sits behind content but above backdrop */
   }
 
   .toggle-elevate.toggle-elevated::before {
     background-color: var(--elevate-2);
   }
 
-  /* If there's a 1px border, adjust the inset so that it covers that parent's border */
   .border.toggle-elevate::before {
     inset: -1px;
   }
 
-  /* Does not work on elements with overflow:hidden! */
   .hover-elevate:not(.no-default-hover-elevate),
   .active-elevate:not(.no-default-active-elevate),
   .hover-elevate-2:not(.no-default-hover-elevate),
@@ -215,10 +204,8 @@
     pointer-events: none;
     position: absolute;
     inset: 0px;
-    /*border-radius: inherit;   match rounded corners */
     border-radius: inherit;
     z-index: 999;
-    /* sits in front of content */
   }
 
   .hover-elevate:hover:not(.no-default-hover-elevate)::after,
@@ -231,7 +218,6 @@
     background-color: var(--elevate-2);
   }
 
-  /* If there's a 1px border, adjust the inset so that it covers that parent's border */
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after,
   .border.active-elevate:not(.no-active-interaction-elevate)::after,
   .border.hover-elevate-2:not(.no-hover-interaction-elevate)::after,

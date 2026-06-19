@@ -116,7 +116,7 @@ export default function ClueCard({ clue, index, revealed }: ClueCardProps) {
                   {clue.previewUrl ? (
                     <AudioPlayer src={clue.previewUrl} />
                   ) : (
-                    <div className="text-center p-4 border border-dashed border-border rounded-lg bg-black/20 text-muted-foreground italic">
+                    <div className="text-center p-4 border border-dashed border-border rounded-lg bg-secondary text-muted-foreground italic">
                       🎵 Audio unlocked! Use your ears.
                     </div>
                   )}
