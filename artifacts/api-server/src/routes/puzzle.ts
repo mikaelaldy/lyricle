@@ -20,6 +20,7 @@ import {
 } from "../lib/puzzle";
 import { searchTracks } from "../lib/musixmatch";
 import { searchCuratedSongs } from "../lib/curated-puzzles";
+import { searchItunesTracks } from "../lib/itunes";
 
 const router: IRouter = Router();
 
@@ -73,7 +74,21 @@ router.get("/puzzle/autocomplete", async (req, res): Promise<void> => {
     return;
   }
 
-  // Fallback: search curated songs when MXM is unavailable
+  // iTunes Search API — free, no key, full catalog with album art
+  const itunesTracks = await searchItunesTracks(query.data.q, 8);
+  if (itunesTracks.length > 0) {
+    res.json({
+      tracks: itunesTracks.map((t) => ({
+        displayName: `${t.artistName} — ${t.trackName}`,
+        artist: t.artistName,
+        title: t.trackName,
+        albumArtUrl: t.artworkUrl600,
+      })),
+    });
+    return;
+  }
+
+  // Last resort: curated song list (offline-safe)
   const curated = searchCuratedSongs(query.data.q, 8);
   res.json({
     tracks: curated.map((s) => ({

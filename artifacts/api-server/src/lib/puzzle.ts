@@ -15,9 +15,14 @@ import {
 } from "./musixmatch";
 import {
   getCuratedSong,
+  CURATED_SONGS,
   buildRichsyncWords,
   type CuratedSong,
 } from "./curated-puzzles";
+import {
+  fetchItunesChartTracks,
+  lookupItunesTrack,
+} from "./itunes";
 
 // ─── Disk cache for album art ──────────────────────────────────────────────────
 // Persists albumArtUrl across server restarts so a cold-start oEmbed failure
@@ -25,26 +30,30 @@ import {
 
 const DISK_CACHE_DIR = join(process.cwd(), ".puzzle-cache");
 
-async function readDiskCache(date: string): Promise<string | null> {
+interface DiskCacheData {
+  albumArtUrl?: string | null;
+  previewUrl?: string | null;
+}
+
+async function readDiskCache(date: string): Promise<DiskCacheData> {
   try {
     const content = await fsp.readFile(join(DISK_CACHE_DIR, `${date}.json`), "utf-8");
-    const data = JSON.parse(content) as { albumArtUrl?: string | null };
-    return data.albumArtUrl ?? null;
+    return JSON.parse(content) as DiskCacheData;
   } catch {
-    return null;
+    return {};
   }
 }
 
-async function writeDiskCache(date: string, albumArtUrl: string | null): Promise<void> {
+async function writeDiskCache(date: string, data: DiskCacheData): Promise<void> {
   try {
     await fsp.mkdir(DISK_CACHE_DIR, { recursive: true });
     await fsp.writeFile(
       join(DISK_CACHE_DIR, `${date}.json`),
-      JSON.stringify({ albumArtUrl }),
+      JSON.stringify(data),
       "utf-8",
     );
   } catch (err) {
-    logger.warn({ err }, "Failed to write album art disk cache");
+    logger.warn({ err }, "Failed to write puzzle disk cache");
   }
 }
 
@@ -127,7 +136,25 @@ const STAGE_LABELS = [
 
 let cache: PuzzleCache | null = null;
 
+/** Fuzzy-match an iTunes chart entry against the curated songs list. */
+function matchCuratedSong(itunesTitle: string, itunesArtist: string): CuratedSong | null {
+  const lower = (s: string) => s.toLowerCase().replace(/[^\w\s]/g, "").trim();
+  const lt = lower(itunesTitle);
+  const la = lower(itunesArtist);
+  return (
+    CURATED_SONGS.find((s) => {
+      const ct = lower(s.trackName);
+      const ca = lower(s.artistName);
+      return (
+        (ct === lt || ct.includes(lt) || lt.includes(ct)) &&
+        (ca === la || ca.split(" ")[0] === la.split(" ")[0])
+      );
+    }) ?? null
+  );
+}
+
 async function loadTodayTrack(): Promise<{ track: MxmTrack | null; curated: CuratedSong | null }> {
+  // 1. Try Musixmatch live chart
   try {
     const tracks = await fetchChartTracks(100);
     if (tracks.length > 0) {
@@ -136,15 +163,43 @@ async function loadTodayTrack(): Promise<{ track: MxmTrack | null; curated: Cura
       const track = tracks[idx];
       logger.info(
         { trackId: track.track_id, title: track.track_name, artist: track.artist_name },
-        "Today's puzzle track selected (live)",
+        "Today's puzzle track selected (Musixmatch live)",
       );
       return { track, curated: null };
     }
   } catch (err) {
-    logger.error({ err }, "Failed to load today's track from chart");
+    logger.error({ err }, "Musixmatch chart failed");
   }
 
-  // Fallback to curated puzzle
+  // 2. Try Apple Music top chart — cross-reference with curated for rich clues
+  try {
+    const pn = getPuzzleNumber();
+    const itunesTracks = await fetchItunesChartTracks(100);
+    if (itunesTracks.length > 0) {
+      const idx = (pn - 1) % itunesTracks.length;
+      const it = itunesTracks[idx];
+      // Check if this chart hit matches one of our curated songs (rich clues available)
+      const curatedMatch = matchCuratedSong(it.trackName, it.artistName);
+      if (curatedMatch) {
+        logger.info(
+          { title: curatedMatch.trackName, artist: curatedMatch.artistName },
+          "Today's puzzle track from iTunes chart → matched curated song",
+        );
+        return { track: null, curated: curatedMatch };
+      }
+      logger.info(
+        { title: it.trackName, artist: it.artistName },
+        "Today's puzzle track selected (iTunes chart, no curated match)",
+      );
+      // Use curated data by puzzle number for quality clues; media from iTunes
+      const curated = getCuratedSong(pn);
+      return { track: null, curated };
+    }
+  } catch (err) {
+    logger.error({ err }, "iTunes chart failed");
+  }
+
+  // 3. Final fallback: curated puzzle by puzzle number
   const pn = getPuzzleNumber();
   const curated = getCuratedSong(pn);
   logger.info(
@@ -166,23 +221,43 @@ export async function getPuzzleCache(): Promise<PuzzleCache | null> {
 
   // Resolve album art + preview URL — check disk first so a cold-start failure
   // never leaves Stage 4 without art.
-  let albumArtUrl: string | null = await readDiskCache(today);
-  let previewUrl: string | null = null;
+  const diskData = await readDiskCache(today);
+  let albumArtUrl: string | null = diskData.albumArtUrl ?? null;
+  let previewUrl: string | null = diskData.previewUrl ?? null;
 
   if (albumArtUrl) {
-    logger.info("Album art loaded from disk cache — skipping oEmbed round-trip");
+    logger.info("Album art loaded from disk cache — skipping round-trips");
   } else {
+    // Try Spotify oEmbed first
     const spotifyId = curated?.spotifyTrackId ?? track?.track_spotify_id ?? null;
     if (spotifyId) {
       const spotifyData = await fetchSpotifyData(spotifyId);
       albumArtUrl = spotifyData.albumArtUrl;
       previewUrl = spotifyData.previewUrl;
     }
+
+    // If Spotify failed, try iTunes as backup for album art + preview
+    if (!albumArtUrl || !previewUrl) {
+      const artistName = curated?.artistName ?? track?.artist_name ?? "";
+      const trackName = curated?.trackName ?? track?.track_name ?? "";
+      if (artistName && trackName) {
+        try {
+          const itunesData = await lookupItunesTrack(artistName, trackName);
+          if (itunesData) {
+            albumArtUrl = albumArtUrl ?? itunesData.artworkUrl600;
+            previewUrl = previewUrl ?? itunesData.previewUrl;
+            logger.info({ title: trackName }, "Media resolved via iTunes lookup");
+          }
+        } catch {}
+      }
+    }
+
     if (!albumArtUrl && track) {
       albumArtUrl = track.album_coverart_800x800 || track.album_coverart_100x100 || null;
     }
-    // Persist album art so the next cold start can skip the fetch.
-    await writeDiskCache(today, albumArtUrl);
+
+    // Persist so the next cold start skips all fetches
+    await writeDiskCache(today, { albumArtUrl, previewUrl });
   }
 
   cache = {
