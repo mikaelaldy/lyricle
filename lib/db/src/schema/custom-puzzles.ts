@@ -1,9 +1,10 @@
 import { pgTable, text, integer, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { nanoid } from "nanoid";
 
 export const customPuzzlesTable = pgTable("custom_puzzles", {
-  id: text("id").primaryKey(),
+  id: text("id").primaryKey().$defaultFn(() => nanoid(8)),
   trackId: text("track_id").notNull(),
   trackName: text("track_name").notNull(),
   artistName: text("artist_name").notNull(),
