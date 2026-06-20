@@ -161,7 +161,15 @@ export default function Game() {
           window.dispatchEvent(new Event("lyricle:points-updated"));
           resolve();
         },
-        onError: (err) => reject(err),
+        onError: (err: any) => {
+          const status = err?.response?.status ?? err?.status;
+          if (status === 401) {
+            // Not logged in — game is valid but score won't be saved
+            resolve();
+          } else {
+            reject(err);
+          }
+        },
       });
     });
   };

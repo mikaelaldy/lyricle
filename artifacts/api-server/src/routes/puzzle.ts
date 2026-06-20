@@ -140,6 +140,13 @@ router.get("/puzzle/answer", async (_req, res): Promise<void> => {
 
 // POST /puzzle/result
 router.post("/puzzle/result", async (req, res): Promise<void> => {
+  // Require login — anonymous users cannot submit scores to the leaderboard
+  const { userId: clerkUserId } = getAuth(req as Request);
+  if (!clerkUserId) {
+    res.status(401).json({ error: "Login required to save your score to the leaderboard." });
+    return;
+  }
+
   const parsed = SubmitResultBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -149,9 +156,6 @@ router.post("/puzzle/result", async (req, res): Promise<void> => {
   const today = getTodayDateString();
   const puzzleNumber = getPuzzleNumber();
   const { playerId, displayName, cluesUsed, won, solveTimeMs, country } = parsed.data;
-
-  // Derive clerkUserId server-side from Clerk auth — never trust client-provided value
-  const { userId: clerkUserId } = getAuth(req as Request);
 
   const pointsEarned = computeDailyScore(won, cluesUsed, solveTimeMs ?? null);
 

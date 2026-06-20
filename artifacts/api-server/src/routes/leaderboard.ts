@@ -34,8 +34,7 @@ router.get("/leaderboard/guessers", async (req, res): Promise<void> => {
 
   const infos = await Promise.all(top50.map((r) => getDisplayInfo(r.userId)));
 
-  const entries = top50.map((r, i) => ({
-    rank: i + 1,
+  const allEntries = top50.map((r, i) => ({
     userId: r.userId,
     displayName: infos[i].displayName,
     country: infos[i].country,
@@ -44,6 +43,10 @@ router.get("/leaderboard/guessers", async (req, res): Promise<void> => {
     puzzlesWon: r.puzzlesWon,
     isMe: r.userId === myUserId,
   }));
+
+  // Filter out entries with no display name (anonymous / never played)
+  const namedEntries = allEntries.filter((e) => e.displayName !== "Anonymous");
+  const entries = namedEntries.map((e, i) => ({ ...e, rank: i + 1 }));
 
   let myEntry = myUserId ? entries.find((e) => e.isMe) ?? null : null;
 
@@ -95,8 +98,7 @@ router.get("/leaderboard/creators", async (req, res): Promise<void> => {
 
   const infos = await Promise.all(top50.map((r) => getDisplayInfo(r.creatorId)));
 
-  const entries = top50.map((r, i) => ({
-    rank: i + 1,
+  const allCreatorEntries = top50.map((r, i) => ({
     userId: r.creatorId,
     displayName: infos[i].displayName,
     country: infos[i].country,
@@ -104,6 +106,10 @@ router.get("/leaderboard/creators", async (req, res): Promise<void> => {
     puzzleCount: Number(r.puzzleCount),
     isMe: r.creatorId === myUserId,
   }));
+
+  // Filter out entries with no display name (anonymous / never played)
+  const namedCreatorEntries = allCreatorEntries.filter((e) => e.displayName !== "Anonymous");
+  const entries = namedCreatorEntries.map((e, i) => ({ ...e, rank: i + 1 }));
 
   let myEntry = myUserId ? entries.find((e) => e.isMe) ?? null : null;
 
