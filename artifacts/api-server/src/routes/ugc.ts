@@ -4,7 +4,7 @@ import { db } from "@workspace/db";
 import { customPuzzlesTable, userStatsTable, puzzlePlaysTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { searchTracks, fetchLyrics, fetchSnippet, fetchLyricslens } from "../lib/musixmatch";
-import { lookupItunesTrack } from "../lib/itunes";
+import { lookupItunesTrack, searchItunesTracks } from "../lib/itunes";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -76,14 +76,34 @@ router.get("/search", async (req, res): Promise<void> => {
   }
 
   try {
-    const tracks = await searchTracks(q, 10);
+    const [mxmTracks, itunesTracks] = await Promise.all([
+      searchTracks(q, 10),
+      searchItunesTracks(q, 10),
+    ]);
+
+    // Build a quick lookup from iTunes results keyed by normalised "title|artist"
+    const normalize = (s: string) => s.toLowerCase().replace(/[^\w\s]/g, "").trim();
+    const itunesMap = new Map<string, string>();
+    for (const it of itunesTracks) {
+      if (it.artworkUrl600) {
+        itunesMap.set(`${normalize(it.trackName)}|${normalize(it.artistName)}`, it.artworkUrl600);
+      }
+    }
+
     res.json({
-      tracks: tracks.map((t) => ({
-        trackId: t.track_id,
-        title: t.track_name,
-        artist: t.artist_name,
-        albumArt: t.album_coverart_100x100 || t.album_coverart_800x800 || null,
-      })),
+      tracks: mxmTracks.map((t) => {
+        const mxmArt = t.album_coverart_800x800 || t.album_coverart_100x100 || null;
+        // Fall back to iTunes art when MXM art is absent
+        const itunesArt = !mxmArt
+          ? (itunesMap.get(`${normalize(t.track_name)}|${normalize(t.artist_name)}`) ?? null)
+          : null;
+        return {
+          trackId: t.track_id,
+          title: t.track_name,
+          artist: t.artist_name,
+          albumArt: mxmArt || itunesArt,
+        };
+      }),
     });
   } catch (err) {
     logger.error({ err }, "MXM search error");
