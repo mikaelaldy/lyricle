@@ -34,24 +34,9 @@ export default function DevLogin() {
       ) : (
         <>
           <p className="text-lg font-semibold text-red-500">Dev sign-in failed</p>
-          <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm shadow-sm space-y-2 w-full max-w-xs">
-            <p className="font-medium text-gray-600">Use these credentials manually:</p>
-            <div className="space-y-1 font-mono text-gray-800">
-              <p>📧 lyricletest@mailinator.com</p>
-              <p>🔑 Lyricle2026!</p>
-            </div>
-            <p className="text-xs text-gray-400 pt-1">
-              Get the email code at{" "}
-              <a
-                href="https://www.mailinator.com/v4/public/inboxes.jsp?to=lyricletest"
-                target="_blank"
-                rel="noreferrer"
-                className="text-orange-500 underline"
-              >
-                mailinator.com
-              </a>
-            </p>
-          </div>
+          <p className="text-sm text-gray-500 max-w-xs text-center">
+            The API returned an error. Make sure the server is running and <code className="bg-gray-100 px-1 rounded">CLERK_SECRET_KEY</code> is set.
+          </p>
         </>
       )}
     </div>

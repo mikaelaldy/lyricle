@@ -156,15 +156,15 @@ export default function Game() {
     });
   };
 
-  const handleSubmitScore = async (country: string | null) => {
-    if (!gameState) return;
+  const handleSubmitScore = async (country: string | null): Promise<{ saved: boolean }> => {
+    if (!gameState) return { saved: false };
     const player = getPlayerData();
     if (country) {
       player.country = country;
       savePlayerData(player);
     }
 
-    return new Promise<void>((resolve, reject) => {
+    return new Promise<{ saved: boolean }>((resolve, reject) => {
       submitResult.mutate({
         data: {
           playerId: player.playerId,
@@ -186,13 +186,12 @@ export default function Game() {
           setGameState(updatedState);
           saveDailyState(gameState.puzzleNumber, updatedState);
           window.dispatchEvent(new Event("lyricle:points-updated"));
-          resolve();
+          resolve({ saved: true });
         },
         onError: (err: any) => {
           const status = err?.response?.status ?? err?.status;
           if (status === 401) {
-            // Not logged in — game is valid but score won't be saved
-            resolve();
+            resolve({ saved: false });
           } else {
             reject(err);
           }

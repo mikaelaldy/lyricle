@@ -51,7 +51,7 @@ interface ResultModalProps {
   state: DailyState;
   isLoggedIn: boolean;
   submitting: boolean;
-  onSubmitScore: (country: string | null) => Promise<void>;
+  onSubmitScore: (country: string | null) => Promise<{ saved: boolean }>;
   onRetry: () => void;
   onSignIn: () => void;
   onOpenStats: () => void;
@@ -219,8 +219,12 @@ export default function ResultModal({
 
   const handleSubmit = async () => {
     try {
-      await onSubmitScore(country);
-      toast({ title: "Score submitted!", description: "You're on the leaderboard." });
+      const result = await onSubmitScore(country);
+      if (result?.saved) {
+        toast({ title: "Score submitted!", description: "You're on the leaderboard." });
+      } else {
+        toast({ title: "Sign in to save your score", description: "Create a free account to track your streak and points.", variant: "destructive" });
+      }
     } catch {
       toast({ title: "Submission failed", description: "Please try again.", variant: "destructive" });
     }
