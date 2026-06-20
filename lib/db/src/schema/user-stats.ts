@@ -1,4 +1,4 @@
-import { pgTable, text, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, timestamp, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -10,6 +10,8 @@ export const userStatsTable = pgTable("user_stats", {
   puzzlesWon: integer("puzzles_won").notNull().default(0),
   playsToday: integer("plays_today").notNull().default(0),
   playsResetAt: timestamp("plays_reset_at", { withTimezone: true }).notNull().defaultNow(),
+  milestoneTier: text("milestone_tier").notNull().default("Street Busker"),
+  lastQuestReset: date("last_quest_reset"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
 
