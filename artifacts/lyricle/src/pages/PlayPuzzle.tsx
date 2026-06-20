@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import { useUser } from "@clerk/react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Music2, Headphones, FileText, Image, Trophy, RotateCcw, Zap, Lock, ChevronRight, LogIn } from "lucide-react";
+import { Music2, Headphones, FileText, Image, Trophy, RotateCcw, Zap, Lock, ChevronRight, LogIn, BarChart2, MapPin, Calendar, Sparkles, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import GuessInput from "@/components/GuessInput";
@@ -39,6 +39,40 @@ interface FinalReveal {
   trackName: string;
   artistName: string;
   albumArt: string | null;
+}
+
+interface ConcertResult {
+  venueName: string;
+  city: string;
+  date: string;
+  url: string | null;
+}
+
+interface TrackFact {
+  source: string;
+  label: string;
+  value: number;
+}
+
+function formatDate(dateStr: string): string {
+  if (!dateStr) return "";
+  try {
+    return new Date(dateStr).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
+function formatNumber(n: number): string {
+  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+  return n.toLocaleString();
 }
 
 type GamePhase = "loading" | "error" | "auth-gate" | "play-gate" | "playing" | "won" | "lost";
@@ -81,6 +115,13 @@ export default function PlayPuzzle({ params }: Props) {
   const [guessing, setGuessing] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
 
+  // Trivia & Concert states
+  const [concerts, setConcerts] = useState<ConcertResult[] | null>(null);
+  const [concertsLoading, setConcertsLoading] = useState(false);
+  const [facts, setFacts] = useState<TrackFact[] | null>(null);
+  const [factsLoading, setFactsLoading] = useState(false);
+  const [knowMore, setKnowMore] = useState(false);
+
   // Load puzzle on mount; load media separately once we know auth status.
   useEffect(() => {
     if (!puzzleId) { setPhase("error"); return; }
@@ -113,6 +154,29 @@ export default function PlayPuzzle({ params }: Props) {
       })
       .catch(() => setPhase("error"));
   }, [puzzleId]);
+
+  // Fetch trivia/concerts when "Get to know" is clicked
+  useEffect(() => {
+    if ((phase !== "won" && phase !== "lost") || !knowMore || !answer?.artistName) return;
+
+    if (concerts === null && !concertsLoading) {
+      setConcertsLoading(true);
+      fetch(apiUrl(`/artist/concerts?artist=${encodeURIComponent(answer.artistName)}`))
+        .then((r) => r.json() as Promise<{ concerts: ConcertResult[] }>)
+        .then((d) => setConcerts(d.concerts ?? []))
+        .catch(() => setConcerts([]))
+        .finally(() => setConcertsLoading(false));
+    }
+
+    if (answer.trackName && facts === null && !factsLoading) {
+      setFactsLoading(true);
+      fetch(apiUrl(`/track/stats?artist=${encodeURIComponent(answer.artistName)}&title=${encodeURIComponent(answer.trackName)}`))
+        .then((r) => r.json() as Promise<{ streams: number | null; facts: TrackFact[] }>)
+        .then((d) => setFacts(d.facts ?? []))
+        .catch(() => setFacts([]))
+        .finally(() => setFactsLoading(false));
+    }
+  }, [phase, knowMore, answer?.artistName, answer?.trackName]);
 
   const handleGuess = useCallback(
     async (artist: string, title: string) => {
@@ -402,6 +466,97 @@ export default function PlayPuzzle({ params }: Props) {
               ))}
             </div>
           )}
+
+          {/* Get to know the song / artist (expandable) */}
+          <div className="pt-2 pb-2">
+            <button
+              onClick={() => setKnowMore((v) => !v)}
+              className="w-full flex items-center justify-between gap-2 rounded-xl border border-border bg-muted/30 p-3 transition-colors hover:bg-muted/50"
+            >
+              <span className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <span className="text-sm font-semibold">Get to know the song &amp; artist</span>
+              </span>
+              <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${knowMore ? "rotate-180" : ""}`} />
+            </button>
+
+            {knowMore && (
+              <div className="space-y-3 pt-3">
+                {/* Cross-platform facts */}
+                <div className="bg-muted/30 border border-border rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <BarChart2 className="w-4 h-4 text-primary flex-shrink-0" />
+                    <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">By the numbers</span>
+                  </div>
+                  {factsLoading ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      {[0, 1, 2, 3].map((i) => (
+                        <div key={i} className="h-12 bg-muted/50 rounded-lg animate-pulse" />
+                      ))}
+                    </div>
+                  ) : facts && facts.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      {facts.map((f, i) => (
+                        <div key={i} className="rounded-lg bg-background/60 border border-border/60 p-2.5">
+                          <div className="text-lg font-mono tabular-nums font-bold text-primary leading-tight">{formatNumber(f.value)}</div>
+                          <div className="text-[11px] text-muted-foreground leading-tight mt-0.5">{f.label}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No stats available for this track yet.</p>
+                  )}
+                </div>
+
+                {/* JamBase: "Catch them live" */}
+                <div className="bg-muted/30 border border-border rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Music2 className="w-4 h-4 text-primary flex-shrink-0" />
+                    <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Catch them live</span>
+                  </div>
+                  {concertsLoading ? (
+                    <div className="space-y-2">
+                      {[0, 1, 2].map((i) => (
+                        <div key={i} className="h-4 bg-muted/50 rounded animate-pulse" style={{ width: `${70 + i * 8}%` }} />
+                      ))}
+                    </div>
+                  ) : concerts && concerts.length > 0 ? (
+                    <div className="space-y-3">
+                      {concerts.map((c, i) => (
+                        <div key={i} className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">{c.venueName}</p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                              <span className="flex items-center gap-1">
+                                <MapPin className="w-3 h-3" /> {c.city}
+                              </span>
+                              {c.date && (
+                                <span className="flex items-center gap-1">
+                                  <Calendar className="w-3 h-3" /> {formatDate(c.date)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {c.url && (
+                            <a
+                              href={c.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-primary hover:underline flex-shrink-0 mt-0.5"
+                            >
+                              Tickets →
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No upcoming shows found.</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           <div className="flex flex-col gap-2">
             <Button variant="outline" className="gap-2" onClick={() => setLocation("/create")}>
