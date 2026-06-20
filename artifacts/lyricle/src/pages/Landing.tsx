@@ -170,6 +170,7 @@ export default function Landing() {
   const [, setLocation] = useLocation();
   const { user } = useUser();
 
+  const goToPlay = () => setLocation(user ? "/game" : "/sign-up");
   const goToCreate = () => setLocation(user ? "/create" : "/sign-up");
   const goToLeaderboard = () => setLocation("/leaderboard");
 
@@ -182,26 +183,26 @@ export default function Landing() {
         <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-14 items-center">
           <motion.div variants={stagger} initial="hidden" animate="visible">
             <motion.h1 variants={fadeUp} className="text-5xl md:text-6xl font-black text-gray-900 leading-[1.1] tracking-tight mb-6">
-              Send a secret message through a song.
+              Guess the song.<br />Challenge your friends.
             </motion.h1>
             <motion.p variants={fadeUp} className="text-lg text-gray-500 leading-relaxed mb-8 max-w-md">
-              Create your own personalized music puzzle. Pick a song, hide a lyric, and challenge your friends to guess it. Completely free to play.
+              Play the daily music puzzle — or create your own and send it to friends. Completely free.
             </motion.p>
             <motion.div variants={fadeUp} className="flex flex-wrap gap-3">
               <Button
                 size="lg"
-                onClick={goToCreate}
+                onClick={goToPlay}
                 className="bg-gray-900 hover:bg-gray-800 text-white font-bold px-8 h-12 rounded-full text-base transition-transform hover:scale-105 shadow-lg"
               >
-                Create Your First Puzzle 🎵
+                Play the Puzzle 🎵
               </Button>
               <Button
                 size="lg"
                 variant="outline"
-                onClick={goToLeaderboard}
+                onClick={goToCreate}
                 className="h-12 rounded-full font-semibold px-8 bg-transparent border border-gray-300 text-gray-700 hover:bg-gray-50"
               >
-                View Leaderboard 🏆
+                Create a Puzzle ✏️
               </Button>
             </motion.div>
           </motion.div>
@@ -255,7 +256,7 @@ export default function Landing() {
               onClick={() => setLocation(user ? "/game" : "/sign-up")}
               className="rounded-full font-semibold px-5 border-primary/40 text-primary hover:bg-primary/5"
             >
-              {user ? "Play Today's Puzzle →" : "Try it Free →"}
+              {user ? "Play the Puzzle →" : "Try it Free →"}
             </Button>
           </motion.div>
 
