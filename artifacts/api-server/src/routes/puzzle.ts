@@ -159,11 +159,12 @@ router.post("/puzzle/result", async (req, res): Promise<void> => {
 
   const pointsEarned = computeDailyScore(won, cluesUsed, solveTimeMs ?? null);
 
-  // Upsert daily result (one per player per day)
+  // Deduplication keyed on server-verified clerkUserId (not client-supplied playerId)
+  // so authenticated users cannot farm points by replaying with a different playerId.
   const existing = await db
     .select()
     .from(dailyResultsTable)
-    .where(and(eq(dailyResultsTable.playerId, playerId), eq(dailyResultsTable.puzzleDate, today)))
+    .where(and(eq(dailyResultsTable.clerkUserId, clerkUserId), eq(dailyResultsTable.puzzleDate, today)))
     .limit(1);
 
   if (existing.length === 0) {
