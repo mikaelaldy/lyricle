@@ -18,6 +18,7 @@ import {
   RotateCcw,
   LogIn,
   Swords,
+  Users,
 } from "lucide-react";
 import { useGetPuzzleAnswer, useGetPlayerStreak } from "@workspace/api-client-react";
 import { getGetPuzzleAnswerQueryKey, getGetPlayerStreakQueryKey } from "@workspace/api-client-react";
@@ -451,7 +452,26 @@ export default function ResultModal({
           )}
         </div>
 
-        <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-4">
+        {/* Primary post-game CTAs */}
+        <div className="flex flex-col gap-2 pt-4">
+          <Button
+            onClick={onOpenLeaderboard}
+            className="w-full gap-2 font-bold rounded-full h-11 bg-primary hover:bg-primary/90 text-white"
+            data-testid="button-results-leaderboard"
+          >
+            <Trophy className="w-4 h-4" /> See the leaderboard
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => { window.location.href = `${basePath}/create`; }}
+            className="w-full gap-2 font-bold rounded-full h-11 border-2"
+            data-testid="button-challenge-friend"
+          >
+            <Users className="w-4 h-4" /> Challenge a friend
+          </Button>
+        </div>
+
+        <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-border/50 mt-2">
           <Button
             onClick={async () => {
               try {
@@ -490,18 +510,16 @@ export default function ResultModal({
                 });
               }
             }}
-            className="flex-1 gap-2 font-bold bg-[#FF5500] hover:bg-[#FF5500]/90 text-white rounded-full h-10"
+            variant="ghost"
+            className="flex-1 gap-2 text-xs text-muted-foreground hover:text-foreground"
           >
-            <Swords className="w-4 h-4" /> Create Duel
+            <Swords className="w-3.5 h-3.5" /> Create Duel
           </Button>
-          <Button onClick={handleShare} className="flex-1 gap-2 font-bold" data-testid="button-share">
-            <Share2 className="w-4 h-4" /> Share
+          <Button variant="ghost" onClick={handleShare} className="flex-1 gap-2 text-xs text-muted-foreground hover:text-foreground" data-testid="button-share">
+            <Share2 className="w-3.5 h-3.5" /> Share
           </Button>
-          <Button variant="outline" onClick={onOpenLeaderboard} className="flex-1 gap-2" data-testid="button-results-leaderboard">
-            <Trophy className="w-4 h-4" /> Leaderboard
-          </Button>
-          <Button variant="outline" onClick={onOpenStats} className="flex-1 gap-2" data-testid="button-results-stats">
-            <BarChart2 className="w-4 h-4" /> Stats
+          <Button variant="ghost" onClick={onOpenStats} className="flex-1 gap-2 text-xs text-muted-foreground hover:text-foreground" data-testid="button-results-stats">
+            <BarChart2 className="w-3.5 h-3.5" /> Stats
           </Button>
         </DialogFooter>
       </DialogContent>

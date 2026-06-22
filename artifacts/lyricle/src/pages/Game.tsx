@@ -328,7 +328,7 @@ export default function Game() {
         onRetry={handleRetry}
         onSignIn={() => { window.location.href = `${basePathHref}/sign-in`; }}
         onOpenStats={() => { setShowResult(false); setShowStats(true); }}
-        onOpenLeaderboard={() => { window.location.href = `${basePathHref}/leaderboard`; }}
+        onOpenLeaderboard={() => { window.location.href = `${basePathHref}/leaderboard?highlight=me`; }}
       />
 
       <StatsModal 

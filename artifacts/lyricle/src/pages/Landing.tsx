@@ -65,7 +65,7 @@ export default function Landing() {
                 onClick={goToPlay}
                 className="group inline-flex items-center justify-center bg-slate-900 text-white font-bold text-base md:text-lg px-8 py-4 rounded-full hover:scale-105 transition-transform"
               >
-                Play the Puzzle
+                Play for Free
                 <Play className="ml-3 w-5 h-5 fill-current" />
               </button>
               <button 

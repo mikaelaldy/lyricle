@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -16,6 +16,11 @@ import { flagEmoji, countryName } from "@/lib/countries";
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 function apiUrl(path: string) {
   return `${basePath}/api${path}`;
+}
+
+function useHighlightMe() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("highlight") === "me";
 }
 
 interface GuesserEntry {
@@ -84,6 +89,7 @@ function cn(...classes: (string | boolean | undefined | null)[]) {
 
 export default function Leaderboard() {
   const { user } = useAuthUser();
+  const highlightMe = useHighlightMe();
 
   const [guessers, setGuessers] = useState<LeaderboardResponse<GuesserEntry> | null>(null);
   const [guessersLoading, setGuessersLoading] = useState(true);
@@ -91,6 +97,10 @@ export default function Leaderboard() {
   const [creators, setCreators] = useState<LeaderboardResponse<CreatorEntry> | null>(null);
   const [creatorsLoading, setCreatorsLoading] = useState(false);
   const [creatorsLoaded, setCreatorsLoaded] = useState(false);
+
+  const myGuesserRowRef = useRef<HTMLTableRowElement | null>(null);
+  const myCreatorRowRef = useRef<HTMLTableRowElement | null>(null);
+  const [flashMe, setFlashMe] = useState(false);
 
   useEffect(() => {
     setGuessersLoading(true);
@@ -100,6 +110,16 @@ export default function Leaderboard() {
       .catch(() => setGuessers({ entries: [], myEntry: null }))
       .finally(() => setGuessersLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!highlightMe || guessersLoading || !myGuesserRowRef.current) return;
+    const el = myGuesserRowRef.current;
+    setTimeout(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      setFlashMe(true);
+      setTimeout(() => setFlashMe(false), 2200);
+    }, 300);
+  }, [guessersLoading, highlightMe]);
 
   function loadCreators() {
     if (creatorsLoaded) return;
@@ -194,10 +214,14 @@ export default function Leaderboard() {
                         {guessers.entries.map((entry) => (
                           <tr
                             key={entry.userId}
+                            ref={entry.isMe ? myGuesserRowRef : undefined}
                             className={cn(
-                              "group transition-colors",
+                              "group transition-all duration-300",
                               entry.isMe
-                                ? "bg-primary/10 border-l-2 border-l-primary"
+                                ? cn(
+                                    "bg-primary/10 border-l-2 border-l-primary",
+                                    flashMe && "ring-2 ring-inset ring-primary/60 bg-primary/20"
+                                  )
                                 : "hover:bg-secondary/20"
                             )}
                           >
@@ -225,7 +249,13 @@ export default function Leaderboard() {
                                 · · ·
                               </td>
                             </tr>
-                            <tr className="bg-primary/10 border-l-2 border-l-primary">
+                            <tr
+                              ref={myGuesserRowRef}
+                              className={cn(
+                                "bg-primary/10 border-l-2 border-l-primary transition-all duration-300",
+                                flashMe && "ring-2 ring-inset ring-primary/60 bg-primary/20"
+                              )}
+                            >
                               <td className="px-6 py-4 font-mono font-bold text-primary">
                                 <RankBadge rank={guessers.myEntry.rank} />
                               </td>
