@@ -19,6 +19,7 @@ import {
   LogIn,
   Swords,
   Users,
+  Link,
 } from "lucide-react";
 import { useGetPuzzleAnswer, useGetPlayerStreak } from "@workspace/api-client-react";
 import { getGetPuzzleAnswerQueryKey, getGetPlayerStreakQueryKey } from "@workspace/api-client-react";
@@ -128,6 +129,7 @@ export default function ResultModal({
   const [factsLoading, setFactsLoading] = useState(false);
   const [knowMore, setKnowMore] = useState(false);
   const [country, setCountry] = useState<string | null>(null);
+  const [challengeLoading, setChallengeLoading] = useState(false);
 
   const submitted = state.resultSubmitted;
   const canRetry = !submitted && !state.retryUsed && isLoggedIn;
@@ -232,6 +234,52 @@ export default function ResultModal({
       }
     } catch {
       toast({ title: "Submission failed", description: "Please try again.", variant: "destructive" });
+    }
+  };
+
+  const handleChallengeFriend = async () => {
+    if (!isLoggedIn) {
+      const url = `${window.location.origin}${basePath}/game`;
+      try {
+        await navigator.clipboard.writeText(url);
+        toast({ title: "Link copied!", description: "Send it to a friend — sign in to create a personal duel." });
+      } catch {
+        toast({ title: "Could not copy", description: "Please copy the link manually.", variant: "destructive" });
+      }
+      return;
+    }
+
+    setChallengeLoading(true);
+    try {
+      const res = await fetch(apiUrl("/duels"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          puzzleType: "daily",
+          puzzleRef: state.date,
+          wager: 0,
+          cluesUsed: Math.max(1, state.guesses.length),
+          solveTimeMs: state.solveTimeMs ?? 0,
+          won: state.won,
+          displayName: getPlayerData().displayName || "Anonymous",
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.duel?.id) {
+        const duelUrl = `${window.location.origin}${basePath}/duel/${data.duel.id}`;
+        try {
+          await navigator.clipboard.writeText(duelUrl);
+          toast({ title: "Link copied — send it to a friend!", description: "They'll play the same puzzle and you'll see how you compare." });
+        } catch {
+          toast({ title: "Duel created!", description: `Share this link: ${duelUrl}` });
+        }
+      } else {
+        toast({ title: "Couldn't create challenge link", description: data.error || "Please try again.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Network error", description: "Please check your connection.", variant: "destructive" });
+    } finally {
+      setChallengeLoading(false);
     }
   };
 
@@ -463,11 +511,16 @@ export default function ResultModal({
           </Button>
           <Button
             variant="outline"
-            onClick={() => { window.location.href = `${basePath}/create`; }}
+            onClick={handleChallengeFriend}
+            disabled={challengeLoading}
             className="w-full gap-2 font-bold rounded-full h-11 border-2"
             data-testid="button-challenge-friend"
           >
-            <Users className="w-4 h-4" /> Challenge a friend
+            {challengeLoading ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> Creating link...</>
+            ) : (
+              <><Link className="w-4 h-4" /> Challenge a friend</>
+            )}
           </Button>
         </div>
 
