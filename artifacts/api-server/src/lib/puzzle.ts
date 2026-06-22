@@ -130,7 +130,7 @@ export type ClueData = {
 };
 
 const STAGE_LABELS = [
-  "Personal Clue",
+  "Obscure Clue",
   "Vibes & Themes",
   "Lyric Snippet",
   "Album Art",
@@ -293,33 +293,73 @@ export async function getPuzzleCache(): Promise<PuzzleCache | null> {
 // ─── Clue builders ────────────────────────────────────────────────────────────
 
 async function buildClue0(puzzle: PuzzleCache): Promise<ClueData> {
-  // Stage 0: Personal Clue — a lyric-based hint to open the puzzle.
-  // For curated songs: use the hand-crafted translated line (a cryptic lyric hint).
-  // For live MXM tracks: pick a line from ~60% through the lyrics (not the same
-  // line used by buildClue2 which takes the first/second line).
+  // Stage 0: Obscure Clue — a witty culture-reference clue that evokes the song without naming it.
+  // For curated songs: use the AI-generated obscureClue stored in the song data.
+  // For live MXM tracks: generate one via AI at puzzle-build time (cached with the puzzle).
   if (puzzle.curated) {
     return {
       stage: 0,
       stageLabel: STAGE_LABELS[0],
-      personalNote: puzzle.curated.translatedLine,
+      personalNote: puzzle.curated.obscureClue ?? puzzle.curated.translatedLine,
     };
   }
 
   const { track } = puzzle;
   if (!track) return { stage: 0, stageLabel: STAGE_LABELS[0], personalNote: null };
 
+  // Try to generate an AI obscure clue for live MXM tracks
   let personalNote: string | null = null;
 
   try {
-    const lyrics = await fetchLyrics(track.track_id);
-    if (lyrics?.lyrics_body) {
-      const lines = lyrics.lyrics_body
-        .split("\n")
-        .map((l) => l.trim())
-        .filter((l) => l.length > 8 && !l.startsWith("*") && !l.toLowerCase().includes("lyrics is not for commercial"));
-      personalNote = lines[Math.floor(lines.length * 0.6)] ?? lines[0] ?? null;
+    const BASE_URL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+    const API_KEY = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+
+    if (BASE_URL && API_KEY) {
+      const res = await fetch(`${BASE_URL}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "gpt-5-mini",
+          max_completion_tokens: 200,
+          messages: [
+            {
+              role: "system",
+              content: "You are a witty music puzzle clue writer. Write ONE obscure clue (1-2 punchy sentences) that evokes the song's feeling or cultural vibe without naming the song, artist, album, or any direct lyric. Return only the clue text, no quotes or explanation.",
+            },
+            {
+              role: "user",
+              content: `Song: "${track.track_name}" by ${track.artist_name}. Write an obscure clue that evokes this song's essence without giving it away.`,
+            },
+          ],
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
+        const clue = data.choices?.[0]?.message?.content?.trim();
+        if (clue) personalNote = clue;
+      }
     }
-  } catch {}
+  } catch {
+    // AI generation failed — fall back to lyric excerpt below
+  }
+
+  // Fallback: pick a line from lyrics if AI failed
+  if (!personalNote) {
+    try {
+      const lyrics = await fetchLyrics(track.track_id);
+      if (lyrics?.lyrics_body) {
+        const lines = lyrics.lyrics_body
+          .split("\n")
+          .map((l) => l.trim())
+          .filter((l) => l.length > 8 && !l.startsWith("*") && !l.toLowerCase().includes("lyrics is not for commercial"));
+        personalNote = lines[Math.floor(lines.length * 0.6)] ?? lines[0] ?? null;
+      }
+    } catch {}
+  }
 
   if (!personalNote) {
     try {

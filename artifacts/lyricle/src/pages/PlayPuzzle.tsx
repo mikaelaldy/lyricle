@@ -79,7 +79,7 @@ function formatNumber(n: number): string {
 type GamePhase = "loading" | "error" | "auth-gate" | "play-gate" | "playing" | "won" | "lost";
 
 const STAGE_META = [
-  { icon: FileText,   label: "Personal Clue"  },
+  { icon: FileText,   label: "Creator's Clue"  },
   { icon: Sparkles,   label: "Vibes & Themes" },
   { icon: FileText,   label: "Lyric Snippet"  },
   { icon: Image,      label: "Album Art"      },

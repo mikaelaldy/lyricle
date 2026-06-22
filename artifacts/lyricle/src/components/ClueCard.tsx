@@ -47,7 +47,7 @@ export default function ClueCard({ clue, index, revealed }: ClueCardProps) {
                       {clue.personalNote}
                     </blockquote>
                   ) : (
-                    <div className="text-muted-foreground italic text-sm">Personal clue unavailable for this track.</div>
+                    <div className="text-muted-foreground italic text-sm">Obscure clue unavailable for this track.</div>
                   )}
                 </div>
               )}

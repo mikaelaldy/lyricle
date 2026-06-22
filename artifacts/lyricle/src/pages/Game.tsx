@@ -437,7 +437,7 @@ const TUTORIAL_STEPS = [
     content: (
       <div className="space-y-3">
         {[
-          { n: "01", label: "Personal Clue", desc: "The creator's personal memory or feeling tied to this song (subjective)." },
+          { n: "01", label: "Obscure Clue", desc: "A witty, culture-reference clue that evokes the song without naming it." },
           { n: "02", label: "Vibes & Themes", desc: "AI-analyzed mood and keyword themes pulled from the lyrics." },
           { n: "03", label: "Lyric Snippet", desc: "A direct line from the song's official lyrics." },
           { n: "04", label: "Album Art", desc: "The cover art for this release. Getting warmer." },
