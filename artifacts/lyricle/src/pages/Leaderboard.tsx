@@ -179,7 +179,7 @@ export default function Leaderboard() {
           </Link>
           <div>
             <h1 className="text-4xl font-serif font-black tracking-tighter uppercase italic">
-              The Charts
+              Leaderboard
             </h1>
             <p className="font-mono text-xs text-muted-foreground uppercase tracking-widest mt-1">
               Top Guessers • Top Creators • All-Time
